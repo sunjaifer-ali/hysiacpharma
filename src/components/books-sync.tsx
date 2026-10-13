@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isBooksImportRecent } from "@/lib/import-guard";
 import { booksFingerprint, type BooksSnapshot } from "@/lib/backup";
 import { isDesktopApp } from "@/lib/desktop";
 import { booksLoad, booksSave } from "@/lib/staff-accounts";
@@ -73,7 +74,7 @@ export function BooksSync() {
     };
 
     const pull = async () => {
-      if (stop || dirty || applying) return;
+      if (stop || dirty || applying || isBooksImportRecent()) return;
       const remote = await booksLoad();
       if (stop || !remote.ok || !remote.books) return;
       if (remote.updatedAt === lastUpdated) return;
@@ -91,7 +92,7 @@ export function BooksSync() {
 
     void (async () => {
       const remote = await booksLoad();
-      if (stop || !remote.ok) return;
+      if (stop || !remote.ok || isBooksImportRecent()) return;
       if (remote.books) apply(remote.books as BooksSnapshot, remote.updatedAt);
       else if (hasWork(snapshot())) await save();
       else lastFp = booksFingerprint(snapshot());

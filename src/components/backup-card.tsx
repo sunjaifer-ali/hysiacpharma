@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { markBooksImport } from "@/lib/import-guard";
 import { Cloud, FolderOpen, Link2Off, RotateCcw, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -147,6 +148,7 @@ export function BackupCard() {
         await restoreFromDriveFile(pick.slice(6));
       } else {
         const text = await readFolderBackup(pick);
+        markBooksImport();
         replaceAll(parseBackupText(text));
       }
       toast.success("Books restored from backup");
