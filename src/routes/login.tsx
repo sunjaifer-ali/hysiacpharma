@@ -1,0 +1,132 @@
+import { createFileRoute, Navigate, useRouter } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
+import { HysiacLogo } from "@/components/logo";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { authClient, authEnabled } from "@/lib/auth/client";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { ensureAdmin } from "@/lib/ensure-admin";
+import { DEFAULT_LOGIN, loginEmail } from "@/lib/login-id";
+import { isDesktopApp } from "@/lib/desktop";
+import { staffSignIn } from "@/lib/staff-accounts";
+import { useStaffSession } from "@/lib/staff-session";
+import { toast } from "sonner";
+import { DeveloperNote } from "@/components/developer-note";
+
+export const Route = createFileRoute("/login")({
+  loader: async () => {
+    try {
+      return await ensureAdmin();
+    } catch {
+      return { ok: true as const };
+    }
+  },
+  component: LoginPage,
+});
+
+function LoginPage() {
+  const { user, isPending } = useCurrentUserState();
+  const web = useStaffSession();
+  if (!isDesktopApp) {
+    if (!web.ready) return <LockSplash />;
+    if (web.session) return <Navigate to="/" />;
+    return <LoginForm />;
+  }
+  if (isPending) return <LockSplash />;
+  if (user) return <Navigate to="/" />;
+  return <LoginForm />;
+}
+
+function LockSplash() {
+  return (
+    <main className="grid min-h-dvh place-items-center bg-background px-4">
+      <div className="flex w-full max-w-sm flex-col items-center gap-3">
+        <HysiacLogo className="h-24" />
+        <div className="h-3 w-40 animate-pulse rounded-full bg-secondary" />
+      </div>
+    </main>
+  );
+}
+
+function LoginForm() {
+  const router = useRouter();
+  const [user, setUser] = useState<string>(DEFAULT_LOGIN.username);
+  const [password, setPassword] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!user.trim() || !password) {
+      toast.error("Enter a user name and password");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (!isDesktopApp) {
+        const result = await staffSignIn({ data: { username: user, password } });
+        if (!result.ok) throw new Error(result.error);
+        toast.success("Signed in");
+        window.location.assign("/");
+        return;
+      }
+      const email = loginEmail(user);
+      if (!email || !authEnabled) throw new Error("Sign-in is disabled");
+      await ensureAdmin();
+      const { error } = await authClient.signIn.email({ email, password });
+      if (error) throw new Error(error.message || "Wrong user name or password");
+      await router.invalidate();
+      toast.success("Signed in");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not sign in");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="grid min-h-dvh place-items-center bg-background px-4 py-10">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <HysiacLogo className="h-28" />
+          <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">GST billing · Sign in</p>
+        </div>
+
+        <form onSubmit={submit} className="register-print space-y-4 p-5">
+          <div>
+            <h1 className="font-display text-2xl">Sign in</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Default login is <span className="font-medium text-foreground">admin</span> /{" "}
+              <span className="font-medium text-foreground">admin</span>.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="login-user">User name</Label>
+            <Input
+              id="login-user"
+              autoComplete="username"
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="login-pass">Password</Label>
+            <Input
+              id="login-pass"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? "Please wait…" : "Sign in"}
+          </Button>
+        </form>
+        <DeveloperNote className="mt-6 px-2" />
+      </div>
+    </main>
+  );
+}

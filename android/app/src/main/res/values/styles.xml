@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Hysiac" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">#1B5C4A</item>
+        <item name="colorPrimaryDark">#143F34</item>
+        <item name="android:statusBarColor">#1B5C4A</item>
+        <item name="android:navigationBarColor">#F3F0E8</item>
+        <item name="android:windowBackground">#F3F0E8</item>
+    </style>
+</resources>

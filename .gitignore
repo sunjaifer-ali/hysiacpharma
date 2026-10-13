@@ -1,0 +1,31 @@
+node_modules
+.output
+.vercel
+dist
+*.log
+.DS_Store
+
+# Android build output and the signing key
+android/.gradle
+android/app/build
+android/local.properties
+android/app/hysiac.keystore
+android/**/*.apk
+
+# Built desktop bundles and unpacked apps
+desktop/renderer
+release
+winapp/renderer
+artifacts
+
+# Customer papers and local screenshots — do not publish
+attachments
+screenshots
+
+# Local toolchains and sandbox files
+.tools
+.grok
+.project_id
+.node_modules.lock
+AGENTS.md
+

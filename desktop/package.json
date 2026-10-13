@@ -1,0 +1,10 @@
+{
+  "name": "hysiac-gst",
+  "productName": "Hysiac GST",
+  "version": "1.0.0",
+  "description": "GST billing for Hysiac Pharmaceuticals Pvt Ltd",
+  "main": "main.cjs",
+  "author": "Hysiac Pharmaceuticals Pvt Ltd",
+  "license": "UNLICENSED",
+  "private": true
+}

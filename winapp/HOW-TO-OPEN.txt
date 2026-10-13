@@ -1,0 +1,15 @@
+Hysiac GST — Windows app
+========================
+
+1. Unzip if needed, then double-click Hysiac-GST.exe.
+2. Windows SmartScreen may say it is an unknown app. Click More info → Run anyway.
+3. Microsoft Edge (already on Windows 10/11) or Google Chrome must be installed.
+
+Your books (invoices, stock, parties) are saved in a folder named
+Hysiac-GST-data next to the .exe. Copy that folder if you move the app
+to another PC or a USB drive.
+
+Settings → Export JSON also writes a backup file.
+
+This copy runs on this computer. Google Drive backup is only in the
+online (published) app.

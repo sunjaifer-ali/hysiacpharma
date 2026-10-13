@@ -1,0 +1,13 @@
+Hysiac GST — Android update
+===========================
+
+Your bills stay on the tablet. Do not uninstall the old app.
+
+1. Copy this Hysiac-GST.apk to the Xiaomi Pad 7.
+2. Open it and tap Update / Install. Android keeps the same app and its books.
+3. Open Hysiac GST. Invoices, purchases, and stock should still be there.
+
+If Android says the package conflicts, the old app was removed or signed differently.
+In that case restore from Settings → Export JSON (do that export BEFORE uninstalling).
+
+Optional safety copy before updating: Settings → Export JSON. That file is your backup.

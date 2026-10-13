@@ -1,0 +1,1 @@
+async function e(){return{id:`desktop-user`,email:`admin@hysiac.local`,name:`Hysiac`}}export{e as getSessionUser};

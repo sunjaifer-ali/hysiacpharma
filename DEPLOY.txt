@@ -1,0 +1,38 @@
+Hysiac GST — website hosting (GitHub + Vercel + Neon)
+=====================================================
+
+Bills, products and parties are saved in Neon. Set DATABASE_URL on Vercel to the Neon connection string, then redeploy. Without that, a bill stays in the browser only.
+
+Sign in with admin / admin the first time.
+Open Users in the left menu to change the admin password or add another user.
+The same books then show on a phone, tablet, laptop and desktop.
+
+1. Neon (free database for the sign-in)
+   - Open https://neon.tech and create a free project named hysiac-gst.
+   - Copy the connection string. It looks like:
+     postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
+   - Use the pooled string if Neon shows one.
+
+2. GitHub
+   - Unzip this file.
+   - Put every folder and file inside the empty repository:
+     https://github.com/sunjaifer-ali/hysiac-gst
+   - Do not upload node_modules. It is not in this zip. Vercel installs it.
+   - The Android signing key is not in this zip.
+
+3. Vercel (free hosting)
+   - Open the project hysiac-gst on Vercel.
+   - Connect the GitHub repository sunjaifer-ali/hysiac-gst.
+   - Settings → Environment Variables, for Production and Preview:
+
+     DATABASE_URL          the Neon connection string
+     VITE_AUTH_ENABLED     true
+     BETTER_AUTH_SECRET    a long random password you invent (at least 32 characters)
+     BETTER_AUTH_URL       https://hysiac-gst.vercel.app
+                           (use the real address Vercel shows, if it is different)
+
+   - Deploy. The first build creates the sign-in tables in Neon.
+   - Open the site and sign in with admin / admin.
+
+If sign-in says the origin is not allowed, set BETTER_AUTH_URL to the exact
+address in the browser (including https) and deploy again.
