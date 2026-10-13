@@ -10,7 +10,6 @@ import {
   type BackupTarget,
   type BooksSnapshot,
 } from "./backup";
-import { markBooksImport } from "./import-guard";
 import { writeFolderBackup } from "./backup-folder";
 import { isAndroidApp } from "./android-backup";
 import { useBackupPrefs } from "./backup-prefs";
@@ -183,7 +182,6 @@ export async function restoreFromDriveFile(fileId: string): Promise<void> {
   const res = await readDriveBackup({ data: { fileId } });
   if (!res.ok || !res.json) throw new Error(res.error ?? "Could not read that Drive backup");
   const books = parseBackupText(res.json);
-  markBooksImport();
   useBillingStore.getState().replaceAll(books);
 }
 

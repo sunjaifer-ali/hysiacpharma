@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { isBooksImportRecent } from "@/lib/import-guard";
 import { booksFingerprint, type BooksSnapshot } from "@/lib/backup";
 import { isDesktopApp } from "@/lib/desktop";
 import { booksLoad, booksSave } from "@/lib/staff-accounts";
@@ -68,13 +67,20 @@ export function BooksSync() {
       }
       const result = await booksSave({ data: { json: JSON.stringify(books) } });
       if (stop || !result.ok) return;
+      // Do not mark the store clean if it changed while this save was in flight.
+      // A newer invoice may have been created after this snapshot was taken.
       lastFp = fp;
       lastUpdated = result.updatedAt;
-      dirty = false;
+      const currentFp = booksFingerprint(snapshot());
+      dirty = currentFp !== fp;
+      if (dirty) {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => { void save(); }, 100);
+      }
     };
 
     const pull = async () => {
-      if (stop || dirty || applying || isBooksImportRecent()) return;
+      if (stop || dirty || applying) return;
       const remote = await booksLoad();
       if (stop || !remote.ok || !remote.books) return;
       if (remote.updatedAt === lastUpdated) return;
@@ -90,9 +96,21 @@ export function BooksSync() {
       }, 800);
     });
 
+    // Capture local state before requesting Neon. If the user creates or edits an
+    // invoice while the initial request is in flight, never replace that newer
+    // local state with the older server snapshot.
+    const initialLocalFp = booksFingerprint(snapshot());
     void (async () => {
       const remote = await booksLoad();
-      if (stop || !remote.ok || isBooksImportRecent()) return;
+      if (stop || !remote.ok) return;
+      const currentFp = booksFingerprint(snapshot());
+      if (dirty || currentFp !== initialLocalFp) {
+        // Local state changed while loading. Keep it and push the newer snapshot.
+        dirty = true;
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => { void save(); }, 100);
+        return;
+      }
       if (remote.books) apply(remote.books as BooksSnapshot, remote.updatedAt);
       else if (hasWork(snapshot())) await save();
       else lastFp = booksFingerprint(snapshot());

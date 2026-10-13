@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { markBooksImport } from "@/lib/import-guard";
 import { useRef, type ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -289,7 +288,6 @@ function SettingsPage() {
                 if (!file) return;
                 try {
                   const data = parseBooksBackup(JSON.parse(await file.text()) as unknown);
-                  markBooksImport();
                   replaceAll(data);
                   toast.success("Books restored");
                 } catch {
