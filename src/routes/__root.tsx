@@ -4,6 +4,8 @@ import { Toaster } from "sonner";
 import { AppLockGate } from "@/components/app-lock";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { BooksSync } from "@/components/books-sync";
+import { useStaffSession } from "@/lib/staff-session";
 import { isDesktopApp } from "@/lib/desktop";
 import appCss from "../styles.css?url";
 
@@ -51,6 +53,14 @@ export const Route = createRootRoute({
   component: RootDocument,
 });
 
+function PersistentBooksSync() {
+  const { session, ready } = useStaffSession();
+  // Mount the sync once at the root and only after staff authentication resolves.
+  // This prevents route navigation from unmounting the debounced save before it reaches Neon.
+  if (!ready || !session) return null;
+  return <BooksSync />;
+}
+
 function RootDocument() {
   if (isDesktopApp) {
     return (
@@ -72,6 +82,7 @@ function RootDocument() {
       <body>
         <PreviewHostBridge />
         <AuthProvider>
+          <PersistentBooksSync />
           <Outlet />
           <Toaster position="bottom-right" richColors closeButton />
         </AuthProvider>

@@ -26,7 +26,6 @@ import { useStaffSession } from "@/lib/staff-session";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { HysiacMark } from "@/components/logo";
 import { BackupEngine } from "@/components/backup-engine";
-import { BooksSync } from "@/components/books-sync";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { isDesktopApp } from "@/lib/desktop";
@@ -210,7 +209,6 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
         })}
       </nav>
       <BackupEngine />
-      {!isDesktopApp ? <BooksSync /> : null}
     </div>
   );
 }
