@@ -2,8 +2,7 @@ import { useEffect } from "react";
 import { booksFingerprint, type BooksSnapshot } from "@/lib/backup";
 import { isDesktopApp } from "@/lib/desktop";
 import { booksLoad, booksSave } from "@/lib/staff-accounts";
-import { useBillingStore } from "@/lib/store";
-import { useHasHydrated } from "@/lib/store";
+import { useBillingStore, useHasHydrated } from "@/lib/store";
 
 function snapshot(): BooksSnapshot {
   const s = useBillingStore.getState();
@@ -25,17 +24,14 @@ function snapshot(): BooksSnapshot {
 
 function hasWork(books: BooksSnapshot): boolean {
   return (
-    books.invoices.length +
-      books.products.length +
-      books.parties.length +
-      books.purchases.length +
-      books.quotes.length +
-      books.creditNotes.length >
-    0
+    books.invoices.length + books.products.length + books.parties.length +
+    books.purchases.length + books.purchaseOrders.length + books.quotes.length +
+    books.creditNotes.length + books.payments.length + books.adjustments.length +
+    books.openingDues.length + books.bin.length > 0
   );
 }
 
-/** Keeps invoices, products and parties in Neon so every signed-in device sees the same books. */
+/** Persist the latest books snapshot to Neon without allowing stale saves to win. */
 export function BooksSync() {
   const hydrated = useHasHydrated();
 
@@ -44,91 +40,132 @@ export function BooksSync() {
     let stop = false;
     let dirty = false;
     let applying = false;
+    let initialized = false;
     let lastFp = "";
     let lastUpdated: string | null = null;
-    let timer = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let saveChain: Promise<void> = Promise.resolve();
+    let changeVersion = 0;
+
+    const report = (message: string, error?: unknown) => {
+      // Intentionally visible in browser devtools; never silently discard failed persistence.
+      console.error(`[Hysiac books sync] ${message}`, error ?? "");
+    };
 
     const apply = (books: BooksSnapshot, updatedAt: string | null) => {
       applying = true;
-      useBillingStore.getState().replaceAll(books);
-      lastFp = booksFingerprint(snapshot());
-      lastUpdated = updatedAt;
-      dirty = false;
-      applying = false;
+      try {
+        useBillingStore.getState().replaceAll(books);
+        lastFp = booksFingerprint(snapshot());
+        lastUpdated = updatedAt;
+        dirty = false;
+      } finally {
+        applying = false;
+      }
     };
 
-    const save = async () => {
-      if (stop || applying) return;
-      const books = snapshot();
-      const fp = booksFingerprint(books);
-      if (fp === lastFp) {
-        dirty = false;
-        return;
-      }
-      const result = await booksSave({ data: { json: JSON.stringify(books) } });
-      if (stop || !result.ok) return;
-      // Do not mark the store clean if it changed while this save was in flight.
-      // A newer invoice may have been created after this snapshot was taken.
-      lastFp = fp;
-      lastUpdated = result.updatedAt;
-      const currentFp = booksFingerprint(snapshot());
-      dirty = currentFp !== fp;
-      if (dirty) {
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => { void save(); }, 100);
-      }
+    let queueSave: (delay?: number) => void;
+
+    const saveLatest = () => {
+      saveChain = saveChain.then(async () => {
+        if (stop || applying || !dirty) return;
+        const versionAtStart = changeVersion;
+        const books = snapshot();
+        const fp = booksFingerprint(books);
+        if (fp === lastFp) {
+          if (versionAtStart === changeVersion) dirty = false;
+          return;
+        }
+        try {
+          const result = await booksSave({ data: { json: JSON.stringify(books) } });
+          if (stop) return;
+          if (!result.ok) {
+            report(`Save rejected by server: ${result.error}`);
+            // Keep dirty=true so the next change/focus can retry; don't claim success.
+            return;
+          }
+          lastFp = fp;
+          lastUpdated = result.updatedAt;
+          // A change made while this request was in flight must remain dirty and be saved next.
+          dirty = versionAtStart !== changeVersion || booksFingerprint(snapshot()) !== fp;
+          if (dirty) queueSave(0);
+        } catch (error) {
+          report("Save request failed", error);
+          dirty = true;
+        }
+      }).catch((error) => report("Unexpected save queue error", error));
+    };
+
+    queueSave = (delay = 800) => {
+      if (stop) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => saveLatest(), delay);
     };
 
     const pull = async () => {
-      if (stop || dirty || applying) return;
-      const remote = await booksLoad();
-      if (stop || !remote.ok || !remote.books) return;
-      if (remote.updatedAt === lastUpdated) return;
-      apply(remote.books as BooksSnapshot, remote.updatedAt);
+      if (stop || !initialized || dirty || applying) return;
+      try {
+        const remote = await booksLoad();
+        if (stop || !remote.ok || !remote.books) {
+          if (!stop && !remote.ok) report(`Load rejected by server: ${remote.error}`);
+          return;
+        }
+        // Never replace local state if any local change occurred during the request.
+        if (dirty) return;
+        if (remote.updatedAt !== lastUpdated) apply(remote.books as BooksSnapshot, remote.updatedAt);
+      } catch (error) {
+        report("Load request failed", error);
+      }
     };
 
     const unsub = useBillingStore.subscribe(() => {
       if (applying) return;
+      changeVersion += 1;
       dirty = true;
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        void save();
-      }, 800);
+      queueSave(800);
     });
 
-    // Capture local state before requesting Neon. If the user creates or edits an
-    // invoice while the initial request is in flight, never replace that newer
-    // local state with the older server snapshot.
-    const initialLocalFp = booksFingerprint(snapshot());
     void (async () => {
-      const remote = await booksLoad();
-      if (stop || !remote.ok) return;
-      const currentFp = booksFingerprint(snapshot());
-      if (dirty || currentFp !== initialLocalFp) {
-        // Local state changed while loading. Keep it and push the newer snapshot.
-        dirty = true;
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => { void save(); }, 100);
-        return;
+      const versionBeforeLoad = changeVersion;
+      try {
+        const remote = await booksLoad();
+        if (stop) return;
+        if (!remote.ok) {
+          report(`Initial load rejected by server: ${remote.error}`);
+          initialized = true;
+          // Preserve current state and attempt to persist it instead of silently losing changes.
+          if (hasWork(snapshot())) { dirty = true; queueSave(0); }
+          return;
+        }
+        initialized = true;
+        if (changeVersion !== versionBeforeLoad || dirty) {
+          // The user changed local data while the initial request was pending; save it, don't overwrite it.
+          if (hasWork(snapshot())) { dirty = true; queueSave(0); }
+          return;
+        }
+        if (remote.books) {
+          apply(remote.books as BooksSnapshot, remote.updatedAt);
+        } else if (hasWork(snapshot())) {
+          dirty = true;
+          queueSave(0);
+        } else {
+          lastFp = booksFingerprint(snapshot());
+        }
+      } catch (error) {
+        report("Initial load failed", error);
+        initialized = true;
       }
-      if (remote.books) apply(remote.books as BooksSnapshot, remote.updatedAt);
-      else if (hasWork(snapshot())) await save();
-      else lastFp = booksFingerprint(snapshot());
     })();
 
-    const poll = window.setInterval(() => {
-      void pull();
-    }, 12000);
-    const onFocus = () => {
-      void pull();
-    };
+    const poll = setInterval(() => void pull(), 12000);
+    const onFocus = () => void pull();
     window.addEventListener("focus", onFocus);
 
     return () => {
       stop = true;
       unsub();
-      window.clearTimeout(timer);
-      window.clearInterval(poll);
+      if (timer) clearTimeout(timer);
+      clearInterval(poll);
       window.removeEventListener("focus", onFocus);
     };
   }, [hydrated]);
