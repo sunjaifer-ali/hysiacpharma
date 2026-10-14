@@ -46,6 +46,7 @@ export function BooksSync() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let saveChain: Promise<void> = Promise.resolve();
     let changeVersion = 0;
+    let retryCount = 0;
 
     const report = (message: string, error?: unknown) => {
       // Intentionally visible in browser devtools; never silently discard failed persistence.
@@ -81,9 +82,13 @@ export function BooksSync() {
           if (stop) return;
           if (!result.ok) {
             report(`Save rejected by server: ${result.error}`);
-            // Keep dirty=true so the next change/focus can retry; don't claim success.
+            // Keep dirty=true and retry with bounded backoff; never claim the save succeeded.
+            dirty = true;
+            retryCount += 1;
+            queueSave(Math.min(1000 * 2 ** Math.min(retryCount, 5), 30000));
             return;
           }
+          retryCount = 0;
           lastFp = fp;
           lastUpdated = result.updatedAt;
           // A change made while this request was in flight must remain dirty and be saved next.
@@ -92,6 +97,8 @@ export function BooksSync() {
         } catch (error) {
           report("Save request failed", error);
           dirty = true;
+          retryCount += 1;
+          queueSave(Math.min(1000 * 2 ** Math.min(retryCount, 5), 30000));
         }
       }).catch((error) => report("Unexpected save queue error", error));
     };
@@ -158,8 +165,19 @@ export function BooksSync() {
     })();
 
     const poll = setInterval(() => void pull(), 12000);
-    const onFocus = () => void pull();
+    const onFocus = () => {
+      if (dirty) queueSave(0);
+      else void pull();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && dirty) queueSave(0);
+    };
+    const onPageHide = () => {
+      if (dirty) queueSave(0);
+    };
     window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
 
     return () => {
       stop = true;
@@ -167,6 +185,8 @@ export function BooksSync() {
       if (timer) clearTimeout(timer);
       clearInterval(poll);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, [hydrated]);
 

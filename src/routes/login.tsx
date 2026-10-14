@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { authClient, authEnabled } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { ensureAdmin } from "@/lib/ensure-admin";
-import { DEFAULT_LOGIN, loginEmail } from "@/lib/login-id";
+import { loginEmail } from "@/lib/login-id";
 import { isDesktopApp } from "@/lib/desktop";
 import { staffSignIn } from "@/lib/staff-accounts";
 import { useStaffSession } from "@/lib/staff-session";
@@ -51,7 +51,7 @@ function LockSplash() {
 
 function LoginForm() {
   const router = useRouter();
-  const [user, setUser] = useState<string>(DEFAULT_LOGIN.username);
+  const [user, setUser] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
@@ -96,8 +96,7 @@ function LoginForm() {
           <div>
             <h1 className="font-display text-2xl">Sign in</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Default login is <span className="font-medium text-foreground">admin</span> /{" "}
-              <span className="font-medium text-foreground">admin</span>.
+              Sign in with your authorized Hysiac account to access billing and business records.
             </p>
           </div>
           <div className="space-y-1.5">
