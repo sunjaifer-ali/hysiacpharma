@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PartyPicker } from "@/components/party-picker";
 import { SettleDialog } from "@/components/settle-dialog";
 import { DeleteVoucherButton } from "@/components/delete-voucher";
@@ -12,7 +12,8 @@ import type { OpeningDue } from "@/lib/types";
 import { toast } from "sonner";
 
 export function OpeningDues({ kind }: { kind: OpeningDue["kind"] }) {
-  const dues = useBillingStore((s) => s.openingDues.filter((d) => d.kind === kind));
+  const allDues = useBillingStore((s) => s.openingDues);
+  const dues = useMemo(() => allDues.filter((d) => d.kind === kind), [allDues, kind]);
   const saveOpeningDue = useBillingStore((s) => s.saveOpeningDue);
   const settleOpeningDue = useBillingStore((s) => s.settleOpeningDue);
   const deleteOpeningDue = useBillingStore((s) => s.deleteOpeningDue);

@@ -62,19 +62,12 @@ export function PartyFormDialog({
       toast.error("Party name is required.");
       return;
     }
-    const gstin = form.gstin.trim().toUpperCase();
-    // A blank GSTIN must never block adding a normal customer. Treat a party
-    // with no GSTIN as unregistered (B2C), while still validating any GSTIN
-    // that the user actually enters for a registered party.
-    let partyToSave = { ...form, gstin };
-    if (form.kind === "registered" && !gstin) {
-      partyToSave = { ...partyToSave, kind: "unregistered" };
-    } else if (form.kind === "registered" && !isValidGstin(gstin)) {
-      toast.error("Enter a valid 15-character GSTIN, or leave it blank for a customer without GST.");
+    if (form.kind === "registered" && !isValidGstin(form.gstin)) {
+      toast.error("Enter a valid 15-character GSTIN.");
       return;
     }
-    upsert(partyToSave);
-    onSaved?.(partyToSave);
+    upsert(form);
+    onSaved?.(form);
     toast.success(party ? "Party updated" : "Party added");
     setOpen(false);
   }
@@ -99,14 +92,14 @@ export function PartyFormDialog({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>GST registration</Label>
+              <Label>GST type</Label>
               <Select value={form.kind} onValueChange={(v) => set("kind", v as PartyKind)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="registered">GST registered (B2B)</SelectItem>
-                  <SelectItem value="unregistered">No GSTIN — Unregistered (B2C)</SelectItem>
+                  <SelectItem value="registered">Registered (B2B)</SelectItem>
+                  <SelectItem value="unregistered">Unregistered (B2C)</SelectItem>
                   <SelectItem value="composition">Composition</SelectItem>
                 </SelectContent>
               </Select>
@@ -137,7 +130,7 @@ export function PartyFormDialog({
             </label>
           </div>
           <div className="space-y-1.5">
-            <Label>GSTIN <span className="font-normal text-muted-foreground">(optional for customers without GST)</span></Label>
+            <Label>GSTIN</Label>
             <Input
               value={form.gstin}
               className="uppercase"
@@ -152,9 +145,6 @@ export function PartyFormDialog({
                 }));
               }}
             />
-            {!form.gstin.trim() ? (
-              <p className="text-xs text-muted-foreground">Leave blank for a customer without GST. The customer will be saved as Unregistered (B2C).</p>
-            ) : null}
           </div>
           <div className="space-y-1.5">
             <Label>Drug licence</Label>
