@@ -1,15 +1,15 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie, setCookie } from "@tanstack/react-start/server";
+import { getCookie, getRequest, setCookie } from "@tanstack/react-start/server";
 import { getSql } from "@/lib/db";
 
 const COOKIE = "hysiac_staff";
-const MONTH = 60 * 60 * 24 * 30;
+const TWO_WEEKS = 60 * 60 * 24 * 14;
 
 export type StaffRole = "admin" | "billing";
-export type StaffPublic = { id: string; username: string; role: StaffRole };
+export type StaffPublic = { id: string; username: string; role: StaffRole; mustChange?: boolean };
 
-type AccountRow = StaffPublic & { password_hash: string };
+type AccountRow = StaffPublic & { password_hash: string; must_change?: boolean };
 
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -26,8 +26,25 @@ function passwordMatches(password: string, stored: string): boolean {
   return timingSafeEqual(next, prev);
 }
 
+function passwordProblem(password: string): string | null {
+  if (password.length < 8) return "Password must be at least 8 characters";
+  if (password.trim().toLowerCase() === "admin") return "Choose a password that is not admin";
+  return null;
+}
+
 function cleanName(username: string): string {
   return username.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "");
+}
+
+function clientIp(): string {
+  try {
+    const request = getRequest();
+    const forwarded = request.headers.get("x-forwarded-for") ?? "";
+    const ip = forwarded.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "";
+    return ip.slice(0, 64) || "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 async function ready() {
@@ -41,11 +58,20 @@ async function ready() {
       created_at timestamptz not null default now()
     )
   `;
+  await sql`alter table staff_account add column if not exists must_change boolean not null default false`;
   await sql`
     create table if not exists staff_session (
       token text primary key,
       user_id text not null references staff_account(id) on delete cascade,
       expires_at timestamptz not null
+    )
+  `;
+  await sql`
+    create table if not exists staff_login_attempt (
+      id bigserial primary key,
+      username text not null,
+      ip text not null,
+      created_at timestamptz not null default now()
     )
   `;
   await sql`
@@ -59,8 +85,8 @@ async function ready() {
   const count = await sql<{ n: number }>`select count(*)::int as n from staff_account`;
   if ((count[0]?.n ?? 0) === 0) {
     await sql`
-      insert into staff_account (id, username, password_hash, role)
-      values (${"admin"}, ${"admin"}, ${hashPassword("admin")}, ${"admin"})
+      insert into staff_account (id, username, password_hash, role, must_change)
+      values (${"admin"}, ${"admin"}, ${hashPassword("admin")}, ${"admin"}, ${true})
     `;
   }
   return sql;
@@ -70,7 +96,7 @@ function writeSession(token: string, maxAge: number) {
   setCookie(COOKIE, token, {
     path: "/",
     httpOnly: true,
-    secure: process.env.VERCEL === "1",
+    secure: process.env.VERCEL === "1" || process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge,
   });
@@ -80,14 +106,29 @@ async function current(): Promise<StaffPublic | null> {
   const token = getCookie(COOKIE);
   if (!token) return null;
   const sql = await ready();
-  const rows = await sql<StaffPublic>`
-    select a.id, a.username, a.role
+  const rows = await sql<{ id: string; username: string; role: StaffRole; must_change: boolean }>`
+    select a.id, a.username, a.role, a.must_change
     from staff_session s
     join staff_account a on a.id = s.user_id
     where s.token = ${token} and s.expires_at > now()
     limit 1
   `;
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  return { id: row.id, username: row.username, role: row.role, mustChange: Boolean(row.must_change) };
+}
+
+async function loginBlocked(sql: Awaited<ReturnType<typeof ready>>, name: string, ip: string): Promise<boolean> {
+  await sql`delete from staff_login_attempt where created_at < now() - interval '1 day'`;
+  const byName = await sql<{ n: number }>`
+    select count(*)::int as n from staff_login_attempt
+    where username = ${name} and created_at > now() - interval '15 minutes'
+  `;
+  const byIp = await sql<{ n: number }>`
+    select count(*)::int as n from staff_login_attempt
+    where ip = ${ip} and created_at > now() - interval '15 minutes'
+  `;
+  return (byName[0]?.n ?? 0) >= 8 || (byIp[0]?.n ?? 0) >= 20;
 }
 
 export const staffMe = createServerFn({ method: "GET" }).handler(async () => current());
@@ -100,21 +141,34 @@ export const staffSignIn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; user: StaffPublic } | { ok: false; error: string }> => {
     const sql = await ready();
     const name = cleanName(data.username);
+    const ip = clientIp();
+    if (await loginBlocked(sql, name, ip)) {
+      return { ok: false, error: "Too many tries. Wait 15 minutes." };
+    }
     const rows = await sql<AccountRow>`
-      select id, username, role, password_hash from staff_account where username = ${name} limit 1
+      select id, username, role, password_hash, must_change from staff_account where username = ${name} limit 1
     `;
     const account = rows[0];
     if (!account || !passwordMatches(data.password, account.password_hash)) {
+      await sql`insert into staff_login_attempt (username, ip) values (${name || "unknown"}, ${ip})`;
       return { ok: false, error: "Wrong user name or password" };
     }
+    const mustChange = Boolean(account.must_change) || data.password.trim().toLowerCase() === "admin";
+    if (mustChange && !account.must_change) {
+      await sql`update staff_account set must_change = ${true} where id = ${account.id}`;
+    }
+    await sql`delete from staff_login_attempt where username = ${name}`;
     const token = randomBytes(32).toString("hex");
-    const expires = new Date(Date.now() + MONTH * 1000);
+    const expires = new Date(Date.now() + TWO_WEEKS * 1000);
     await sql`
       insert into staff_session (token, user_id, expires_at)
       values (${token}, ${account.id}, ${expires})
     `;
-    writeSession(token, MONTH);
-    return { ok: true, user: { id: account.id, username: account.username, role: account.role } };
+    writeSession(token, TWO_WEEKS);
+    return {
+      ok: true,
+      user: { id: account.id, username: account.username, role: account.role, mustChange },
+    };
   });
 
 export const staffSignOut = createServerFn({ method: "POST" }).handler(async () => {
@@ -145,7 +199,8 @@ export const staffAdd = createServerFn({ method: "POST" })
     if (!me || me.role !== "admin") return { ok: false, error: "Only a full-access user can add accounts" };
     const name = cleanName(data.username);
     if (name.length < 3) return { ok: false, error: "User name must be at least 3 letters" };
-    if (data.password.length < 4) return { ok: false, error: "Password must be at least 4 characters" };
+    const weak = passwordProblem(data.password);
+    if (weak) return { ok: false, error: weak };
     const sql = await ready();
     const existing = await sql<{ id: string }>`select id from staff_account where username = ${name} limit 1`;
     if (existing[0]) return { ok: false, error: "That user name is already used" };
@@ -183,7 +238,8 @@ export const staffSetPassword = createServerFn({ method: "POST" })
     const me = await current();
     if (!me) return { ok: false, error: "Sign in again" };
     if (me.role !== "admin" && data.id !== me.id) return { ok: false, error: "Only an admin can change another password" };
-    if (data.password.length < 4) return { ok: false, error: "Password must be at least 4 characters" };
+    const weak = passwordProblem(data.password);
+    if (weak) return { ok: false, error: weak };
     const sql = await ready();
     if (data.id === me.id) {
       const rows = await sql<{ password_hash: string }>`
@@ -194,15 +250,18 @@ export const staffSetPassword = createServerFn({ method: "POST" })
       }
     }
     const updated = await sql<{ id: string }>`
-      update staff_account set password_hash = ${hashPassword(data.password)} where id = ${data.id} returning id
+      update staff_account set password_hash = ${hashPassword(data.password)}, must_change = ${false} where id = ${data.id} returning id
     `;
     if (!updated[0]) return { ok: false, error: "User was not found" };
+    const token = getCookie(COOKIE) ?? "";
+    await sql`delete from staff_session where user_id = ${data.id} and token <> ${token}`;
     return { ok: true };
   });
 
 export const booksLoad = createServerFn({ method: "GET" }).handler(async () => {
   const me = await current();
   if (!me) return { ok: false as const, error: "Sign in again" };
+  if (me.mustChange) return { ok: false as const, error: "Change the password before opening the books" };
   const sql = await ready();
   const rows = await sql<{ data: unknown; updated_at: string }>`
     select data, updated_at::text as updated_at from shop_books where id = ${"shop"} limit 1
@@ -222,14 +281,35 @@ export const booksSave = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> => {
     const me = await current();
     if (!me) return { ok: false, error: "Sign in again" };
-    let parsed: { company?: unknown; invoices?: unknown };
+    if (me.mustChange) return { ok: false, error: "Change the password before opening the books" };
+    let parsed: { company?: Record<string, unknown>; invoices?: unknown; purchases?: unknown; products?: unknown };
     try {
-      parsed = JSON.parse(data.json) as { company?: unknown; invoices?: unknown };
+      parsed = JSON.parse(data.json) as { company?: Record<string, unknown>; invoices?: unknown; purchases?: unknown; products?: unknown };
     } catch {
       return { ok: false, error: "Books are not valid" };
     }
     if (!parsed.company || !Array.isArray(parsed.invoices)) return { ok: false, error: "Books are not valid" };
     const sql = await ready();
+    if (me.role !== "admin") {
+      const existing = await sql<{ data: unknown }>`select data from shop_books where id = ${"shop"} limit 1`;
+      const previous = existing[0]?.data;
+      const stored = (typeof previous === "string" ? JSON.parse(previous) : previous) as
+        | { company?: Record<string, unknown>; invoices?: unknown[]; purchases?: unknown[]; products?: unknown[] }
+        | null;
+      if (stored?.company) {
+        const locked = ["legalName", "tradeName", "gstin", "cin", "email", "phone", "bankName", "bankAccount", "bankIfsc", "drugLicense"];
+        for (const key of locked) {
+          if (String(stored.company[key] ?? "") !== String(parsed.company[key] ?? "")) {
+            return { ok: false, error: "Only a full-access user can change company details" };
+          }
+        }
+      }
+      const shrunk = (before: unknown, after: unknown) =>
+        Array.isArray(before) && Array.isArray(after) && after.length + 3 < before.length;
+      if (shrunk(stored?.invoices, parsed.invoices) || shrunk(stored?.purchases, parsed.purchases) || shrunk(stored?.products, parsed.products)) {
+        return { ok: false, error: "Only a full-access user can remove many records at once" };
+      }
+    }
     const rows = await sql<{ updated_at: string }>`
       insert into shop_books (id, data, updated_at, updated_by)
       values (${"shop"}, ${data.json}::jsonb, now(), ${me.username})

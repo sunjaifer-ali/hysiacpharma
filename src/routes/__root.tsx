@@ -57,7 +57,7 @@ function PersistentBooksSync() {
   const { session, ready } = useStaffSession();
   // Mount the sync once at the root and only after staff authentication resolves.
   // This prevents route navigation from unmounting the debounced save before it reaches Neon.
-  if (!ready || !session) return null;
+  if (!ready || !session || session.mustChange) return null;
   return <BooksSync />;
 }
 

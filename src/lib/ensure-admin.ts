@@ -8,6 +8,7 @@ import { DEFAULT_LOGIN } from "@/lib/login-id";
  * Password is hashed with Better Auth's hasher so sign-in verifies it.
  */
 export const ensureAdmin = createServerFn({ method: "POST" }).handler(async () => {
+  if (process.env.VERCEL === "1") return { ok: true as const };
   const sql = await getSql();
   const email = DEFAULT_LOGIN.email;
   const existing = await sql<{ id: string }>`

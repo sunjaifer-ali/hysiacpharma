@@ -39,7 +39,7 @@ function UsersPage() {
       <Card className="mb-4">
         <CardHeader>
           <CardTitle>Change admin password</CardTitle>
-          <CardDescription>Only a full-access user can change this password. Enter the current password, then the new one.</CardDescription>
+          <CardDescription>Use at least 8 characters. The word admin is not allowed.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">

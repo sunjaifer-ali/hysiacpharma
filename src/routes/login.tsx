@@ -16,6 +16,7 @@ import { DeveloperNote } from "@/components/developer-note";
 
 export const Route = createFileRoute("/login")({
   loader: async () => {
+    if (!isDesktopApp) return { ok: true as const };
     try {
       return await ensureAdmin();
     } catch {
@@ -86,17 +87,17 @@ function LoginForm() {
 
   return (
     <main className="grid min-h-dvh place-items-center bg-background px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <HysiacLogo className="h-28" />
-          <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">GST billing · Sign in</p>
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <HysiacLogo className="h-24" />
+          <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Hysiac GST Billing</p>
         </div>
 
-        <form onSubmit={submit} className="register-print space-y-4 p-5">
-          <div>
-            <h1 className="font-display text-2xl">Sign in</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sign in with your authorized Hysiac account to access billing and business records.
+        <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)] sm:p-8">
+          <div className="text-center">
+            <h1 className="font-display text-3xl">Sign in</h1>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Sign in with your Hysiac account to open billing and business records.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -106,6 +107,7 @@ function LoginForm() {
               autoComplete="username"
               value={user}
               onChange={(e) => setUser(e.target.value)}
+              className="h-11"
               required
             />
           </div>
@@ -117,14 +119,15 @@ function LoginForm() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="h-11"
               required
             />
           </div>
-          <Button type="submit" className="w-full" disabled={busy}>
+          <Button type="submit" className="h-11 w-full" disabled={busy}>
             {busy ? "Please wait…" : "Sign in"}
           </Button>
         </form>
-        <DeveloperNote className="mt-6 px-2" />
+        <DeveloperNote className="mt-6" />
       </div>
     </main>
   );

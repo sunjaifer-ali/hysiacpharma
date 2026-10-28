@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { todayISO } from "./format";
-import { calcLine, formatInvoiceNumber, invoiceTotals, isIntraState, round2 } from "./gst";
+import { calcLine, formatInvoiceNumber, invoiceTotals, isIntraState, isValidGstin, round2 } from "./gst";
 import { normalizeProduct, priceListForChannel } from "./pricing";
 import { invoiceNetDue, remainingReturnable } from "./returns";
 import { unitsOnHand } from "./registers";
@@ -158,11 +158,19 @@ export function relinePurchase(line: Purchase["lines"][number], intra: boolean) 
   return { ...line, ...tax };
 }
 
+function cleanItemName(name: string): string {
+  return name.replace(/\s*\(\s*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function normalizeParty(raw: Party): Party {
+  const gstin = (raw.gstin ?? "").trim().toUpperCase();
+  const kind = gstin && isValidGstin(gstin) && raw.kind === "unregistered" ? "registered" : raw.kind;
   const channel: TradeChannel =
-    raw.channel ?? (raw.kind === "unregistered" ? "walkin" : "retailer");
+    raw.channel ?? (kind === "unregistered" ? "walkin" : "retailer");
   return {
     ...raw,
+    gstin,
+    kind,
     channel,
     drugLicense: raw.drugLicense ?? "",
     isCustomer: raw.isCustomer ?? true,
@@ -195,11 +203,21 @@ function normalizeInvoice(inv: Invoice): Invoice {
     otherCharges: inv.otherCharges ?? 0,
     creditApplied: inv.creditApplied ?? 0,
     priceList: inv.priceList ?? priceListForChannel(channel),
-    party: { ...inv.party, channel, drugLicense: inv.party?.drugLicense ?? "" },
+    party: {
+      ...inv.party,
+      channel,
+      gstin: (inv.party?.gstin ?? "").trim().toUpperCase(),
+      kind:
+        inv.party?.gstin && isValidGstin(inv.party.gstin) && inv.party.kind === "unregistered"
+          ? "registered"
+          : inv.party.kind,
+      drugLicense: inv.party?.drugLicense ?? "",
+    },
     company: overlaySeller(inv.company),
     lines: inv.lines.map((l) => ({
       ...l,
-      manufacturer: l.manufacturer ?? "",
+      name: cleanItemName(l.name),
+      manufacturer: (l.manufacturer ?? "").trim(),
       pts: l.pts ?? l.rate,
       ptr: l.ptr ?? l.rate,
       ptsPercent: l.ptsPercent ?? 0,
@@ -212,7 +230,8 @@ function normalizeInvoice(inv: Invoice): Invoice {
 function normalizePurchaseLine(l: Purchase["lines"][number]): Purchase["lines"][number] {
   return {
     ...l,
-    manufacturer: l.manufacturer ?? "",
+    manufacturer: (l.manufacturer ?? "").trim(),
+    name: cleanItemName(l.name),
     mfgDate: l.mfgDate ?? "",
     discount: l.discount ?? 0,
   };
@@ -228,7 +247,15 @@ function normalizePurchase(p: Purchase): Purchase {
     ewayBill: p.ewayBill ?? "",
     cases: p.cases ?? 0,
     paidAmount: p.paidAmount ?? 0,
-    supplier: { ...p.supplier, drugLicense: p.supplier?.drugLicense ?? "" },
+    supplier: {
+      ...p.supplier,
+      gstin: (p.supplier?.gstin ?? "").trim().toUpperCase(),
+      kind:
+        p.supplier?.gstin && isValidGstin(p.supplier.gstin) && p.supplier.kind === "unregistered"
+          ? "registered"
+          : p.supplier.kind,
+      drugLicense: p.supplier?.drugLicense ?? "",
+    },
     lines: p.lines.map((l) => {
       const n = normalizePurchaseLine(l);
       if (p.id === "pur-3" && l.productId === "p-ferrobest" && n.qty < 800) {
@@ -336,7 +363,12 @@ export function normalizeBooks(data: Persisted): {
 } {
   const invoices = (data.invoices ?? []).map(normalizeInvoice);
   const parties = (data.parties ?? []).map(normalizeParty);
-  const products = assignItemFamilies((data.products ?? []).map(normalizeProduct));
+  const products = assignItemFamilies((data.products ?? []).map(normalizeProduct)).map((product) => ({
+    ...product,
+    name: cleanItemName(product.name),
+    genericName: product.genericName.trim(),
+    manufacturer: product.manufacturer.trim(),
+  }));
   const purchases = (Array.isArray(data.purchases) ? data.purchases : []).map(normalizePurchase);
   const purchaseOrders = (Array.isArray(data.purchaseOrders) ? data.purchaseOrders : []).map(normalizePurchaseOrder);
   const company = normalizeCompany(data.company ?? DEFAULT_COMPANY);

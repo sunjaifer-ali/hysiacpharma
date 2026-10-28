@@ -141,6 +141,7 @@ export function PartyFormDialog({
                 setForm((f) => ({
                   ...f,
                   gstin,
+                  kind: isValidGstin(gstin) ? "registered" : f.kind,
                   stateCode: code.length === 2 ? code : f.stateCode,
                 }));
               }}

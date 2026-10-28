@@ -21,15 +21,18 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { canOpen, type WebRole } from "@/lib/web-users";
-import { staffSignOut } from "@/lib/staff-accounts";
+import { staffSignOut, staffSetPassword } from "@/lib/staff-accounts";
 import { useStaffSession } from "@/lib/staff-session";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { HysiacMark } from "@/components/logo";
 import { BackupEngine } from "@/components/backup-engine";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { isDesktopApp } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -105,6 +108,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
     );
   }
   if (!isDesktopApp && !webSession) return <Navigate to="/login" />;
+  if (!isDesktopApp && webSession?.mustChange) return <MustChangePassword id={webSession.id} />;
   if (!isDesktopApp && webSession && !canOpen(webSession.role, pathname)) return <Navigate to="/invoices" />;
 
   if (isDesktopApp && isPending) {
@@ -208,8 +212,54 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
           return <MobileTab key={item.to} item={item} pathname={pathname} />;
         })}
       </nav>
-      <BackupEngine />
+      {isDesktopApp ? <BackupEngine /> : null}
     </div>
+  );
+}
+
+function MustChangePassword({ id }: { id: string }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <main className="grid min-h-dvh place-items-center bg-background px-4">
+      <form
+        className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-card p-5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setBusy(true);
+          void staffSetPassword({ data: { id, password, currentPassword } })
+            .then((result) => {
+              if (!result.ok) {
+                toast.error(result.error);
+                return;
+              }
+              toast.success("Password changed");
+              window.location.assign("/");
+            })
+            .finally(() => setBusy(false));
+        }}
+      >
+        <div className="text-center">
+          <h1 className="font-display text-3xl">Change password</h1>
+          <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
+            The current password is not safe to keep. Choose a new one of at least 8 characters before the books open.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="must-current">Current password</Label>
+          <Input id="must-current" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="must-next">New password</Label>
+          <Input id="must-next" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </div>
+        <Button type="submit" className="w-full" disabled={busy}>
+          {busy ? "Please wait…" : "Save password"}
+        </Button>
+      </form>
+    </main>
   );
 }
 

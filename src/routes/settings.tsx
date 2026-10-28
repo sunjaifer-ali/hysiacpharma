@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, type ReactNode } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState, type ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,26 +10,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { INDIAN_STATES, isValidGstin, panFromGstin } from "@/lib/gst";
 import { useBillingStore } from "@/lib/store";
 import type { CompanyProfile } from "@/lib/types";
+import { booksLoad } from "@/lib/staff-accounts";
 import { toast } from "sonner";
 import { AppLockCard } from "@/components/app-lock";
-import { BackupCard } from "@/components/backup-card";
-import { InstallAppsCard } from "@/components/install-apps";
 import { isDesktopApp } from "@/lib/desktop";
-import {
-  BACKUP_LATEST_NAME,
-  downloadBackupFile,
-  backupJson,
-  parseBooksBackup,
-} from "@/lib/backup";
+import { BACKUP_LATEST_NAME, downloadBackupFile, backupJson, parseBooksBackup } from "@/lib/backup";
 
 export const Route = createFileRoute("/settings")({ component: SettingsPage });
 
 function SettingsPage() {
   const company = useBillingStore((s) => s.company);
   const update = useBillingStore((s) => s.updateCompany);
-  const resetDemo = useBillingStore((s) => s.resetDemo);
-  const replaceAll = useBillingStore((s) => s.replaceAll);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [restoring, setRestoring] = useState(false);
 
   function set<K extends keyof CompanyProfile>(key: K, value: CompanyProfile[K]) {
     update({ [key]: value });
@@ -220,33 +212,13 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
-        <BackupCard />
-
-        {isDesktopApp ? (
-          <AppLockCard />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Users</CardTitle>
-              <CardDescription>Add a sign-in for each person. It works on a phone, tablet, laptop and desktop.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild>
-                <Link to="/users">Add a user</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        <InstallAppsCard />
+        {isDesktopApp ? <AppLockCard /> : null}
 
         <Card>
           <CardHeader>
-            <CardTitle>Books</CardTitle>
+            <CardTitle>Backup</CardTitle>
             <CardDescription>
-              {isDesktopApp
-                ? "Invoices and stock stay on this device, in the Hysiac-GST-data folder next to the app. Export JSON to copy them to a USB drive or another computer."
-                : "Data stays on this device. Export a backup before clearing."}
+              Neon stores one copy of the books and replaces it after each change. Restore brings that copy back onto this browser.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
@@ -273,39 +245,41 @@ function SettingsPage() {
                 );
               }}
             >
-              Export JSON
+              Download backup
             </Button>
-            <Button variant="outline" onClick={() => fileRef.current?.click()}>
-              Import JSON
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const data = parseBooksBackup(JSON.parse(await file.text()) as unknown);
-                  replaceAll(data);
-                  toast.success("Books restored");
-                } catch {
-                  toast.error("Could not read that file");
-                }
-                e.target.value = "";
-              }}
-            />
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (!window.confirm("Clear all invoices, purchases, products and parties? Company details stay.")) return;
-                resetDemo();
-                toast.success("Books cleared — you can enter fresh data");
-              }}
-            >
-              Clear all books
-            </Button>
+            {isDesktopApp ? null : (
+              <Button
+                variant="outline"
+                disabled={restoring}
+                onClick={() => {
+                  if (!window.confirm("Replace the books on this browser with the copy saved in Neon? Anything not saved there will be lost.")) return;
+                  setRestoring(true);
+                  void booksLoad()
+                    .then((remote) => {
+                      if (!remote.ok) {
+                        toast.error(remote.error);
+                        return;
+                      }
+                      if (!remote.books) {
+                        toast.error("Neon has no backup yet");
+                        return;
+                      }
+                      const books = parseBooksBackup(remote.books);
+                      const event = new CustomEvent("hysiac-restore-books", {
+                        cancelable: true,
+                        detail: { books, updatedAt: remote.updatedAt },
+                      });
+                      window.dispatchEvent(event);
+                      if (!event.defaultPrevented) useBillingStore.getState().replaceAll(books);
+                      toast.success("Restored from Neon");
+                    })
+                    .catch(() => toast.error("Could not reach Neon"))
+                    .finally(() => setRestoring(false));
+                }}
+              >
+                {restoring ? "Restoring…" : "Restore from Neon"}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

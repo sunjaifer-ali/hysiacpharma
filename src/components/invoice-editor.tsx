@@ -52,7 +52,7 @@ function fromProduct(p: Product, intra: boolean, list: PriceList): InvoiceLine {
     {
       ...emptyLine(list),
       productId: p.id,
-      name: `${p.name} (${p.genericName})`,
+      name: p.genericName.trim() ? `${p.name.trim()} (${p.genericName.trim()})` : p.name.trim(),
       hsn: p.hsn,
       pack: p.pack,
       unit: p.unit,

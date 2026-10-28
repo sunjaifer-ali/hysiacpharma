@@ -22,12 +22,16 @@ function snapshot(): BooksSnapshot {
   };
 }
 
+function count(list: { length: number } | undefined): number {
+  return list?.length ?? 0;
+}
+
 function hasWork(books: BooksSnapshot): boolean {
   return (
-    books.invoices.length + books.products.length + books.parties.length +
-    books.purchases.length + books.purchaseOrders.length + books.quotes.length +
-    books.creditNotes.length + books.payments.length + books.adjustments.length +
-    books.openingDues.length + books.bin.length > 0
+    count(books.invoices) + count(books.products) + count(books.parties) +
+    count(books.purchases) + count(books.purchaseOrders) + count(books.quotes) +
+    count(books.creditNotes) + count(books.payments) + count(books.adjustments) +
+    count(books.openingDues) + count(books.bin) > 0
   );
 }
 
@@ -161,6 +165,10 @@ export function BooksSync() {
       } catch (error) {
         report("Initial load failed", error);
         initialized = true;
+        if (hasWork(snapshot())) {
+          dirty = true;
+          queueSave(0);
+        }
       }
     })();
 
@@ -173,8 +181,16 @@ export function BooksSync() {
       if (document.visibilityState === "hidden" && dirty) queueSave(0);
     };
     const onPageHide = () => {
-      if (dirty) queueSave(0);
+      if (timer) clearTimeout(timer);
+      if (dirty) saveLatest();
     };
+    const onRestore = (event: Event) => {
+      const detail = (event as CustomEvent<{ books: BooksSnapshot; updatedAt: string | null }>).detail;
+      if (!detail?.books) return;
+      event.preventDefault();
+      apply(detail.books, detail.updatedAt);
+    };
+    window.addEventListener("hysiac-restore-books", onRestore);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onPageHide);
@@ -185,6 +201,7 @@ export function BooksSync() {
       if (timer) clearTimeout(timer);
       clearInterval(poll);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("hysiac-restore-books", onRestore);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onPageHide);
     };

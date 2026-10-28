@@ -84,12 +84,12 @@ function Home() {
         <div className="flex items-center gap-3">
           <HysiacMark className="size-12 shrink-0" />
           <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Hysiac Pharmaceuticals Pvt Ltd</p>
-          <h1 className="font-display text-3xl text-foreground sm:text-4xl">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {company.city} · FY {fy.label}
-            {hydrated ? "" : " · loading books"}
-          </p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Hysiac Pharmaceuticals Pvt Ltd</p>
+            <h1 className="font-display text-3xl text-foreground sm:text-4xl">Dashboard</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {company.city} · FY {fy.label}
+              {hydrated ? "" : " · loading books"}
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
