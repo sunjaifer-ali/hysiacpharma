@@ -82,7 +82,9 @@ function Home() {
     <AppShell>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-center gap-3">
-          <HysiacMark className="size-12 shrink-0" />
+          <Link to="/" aria-label="Dashboard" className="shrink-0">
+            <HysiacMark className="size-12" />
+          </Link>
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Hysiac Pharmaceuticals Pvt Ltd</p>
             <h1 className="font-display text-3xl text-foreground sm:text-4xl">Dashboard</h1>

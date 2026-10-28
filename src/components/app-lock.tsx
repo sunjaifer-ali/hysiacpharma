@@ -64,7 +64,7 @@ export function AppLockGate({ children }: { children: ReactNode }) {
   }, [phase, config.mode]);
 
   if (phase === "check") {
-    return <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">Hysiac GST</div>;
+    return <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">Hysiac Management App</div>;
   }
   if (phase === "open") return <>{children}</>;
 

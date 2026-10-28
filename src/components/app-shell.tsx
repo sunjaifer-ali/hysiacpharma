@@ -29,7 +29,7 @@ import { BackupEngine } from "@/components/backup-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { isDesktopApp } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -128,15 +128,15 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
   return (
     <div className="app-shell min-h-dvh">
       <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-card/80 px-4 py-5 backdrop-blur-sm md:flex">
-        <div className="mb-4 flex shrink-0 items-center gap-3 px-1">
+        <Link to="/" className="mb-4 flex shrink-0 items-center gap-3 rounded-xl px-1 py-1 hover:bg-accent">
           <span className="text-primary">
             <HysiacMark />
           </span>
           <div className="min-w-0">
             <p className="font-display text-base leading-tight text-foreground">Hysiac</p>
-            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">GST billing</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Management</p>
           </div>
-        </div>
+        </Link>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
           <NavLinks role={role} />
         </div>
@@ -156,10 +156,14 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
             <SheetContent side="left" className="flex flex-col overflow-y-auto">
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
-                  <span className="text-primary">
-                    <HysiacMark className="size-8" />
-                  </span>
-                  Hysiac GST
+                  <SheetClose asChild>
+                    <Link to="/" className="flex items-center gap-2">
+                      <span className="text-primary">
+                        <HysiacMark className="size-8" />
+                      </span>
+                      Hysiac Management
+                    </Link>
+                  </SheetClose>
                 </SheetTitle>
               </SheetHeader>
               <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
@@ -170,13 +174,13 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
               </div>
             </SheetContent>
           </Sheet>
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <HysiacMark className="size-8" />
             <div>
               <p className="font-display text-base leading-none">Hysiac</p>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">GST billing</p>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Management</p>
             </div>
-          </div>
+          </Link>
         </div>
         <Button asChild size="sm">
           <Link to="/invoices/new">

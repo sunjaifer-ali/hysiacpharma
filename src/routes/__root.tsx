@@ -9,7 +9,7 @@ import { useStaffSession } from "@/lib/staff-session";
 import { isDesktopApp } from "@/lib/desktop";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Hysiac GST";
+const APP_NAME = "Hysiac Management App";
 
 const fetchSessionUser = createServerFn({ method: "GET" }).handler(async () => {
   const { getSessionUser } = await import("@/lib/auth/verify.server");
@@ -34,7 +34,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#1B5C4A" },
       {
         name: "description",
-        content: "GST billing for Hysiac Pharmaceuticals Pvt Ltd — tax invoices, HSN, CGST/SGST/IGST and GSTR reports.",
+        content: "Hysiac Management App for Hysiac Pharmaceuticals Pvt Ltd — billing, stock, purchases and GST reports.",
       },
     ],
     links: [

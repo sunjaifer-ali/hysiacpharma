@@ -74,7 +74,7 @@ function UsersPage() {
         <CardHeader>
           <CardTitle>Add a user</CardTitle>
           <CardDescription>
-            Billing and products can enter invoices and products only. Full access can also open reports, accounts, purchases and settings.
+            Billing and products can enter invoices, quotations, returns, credit notes, products and parties. Full access can also open purchases, payments, reports, accounts and settings.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

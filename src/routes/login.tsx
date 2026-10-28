@@ -90,7 +90,7 @@ function LoginForm() {
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <HysiacLogo className="h-24" />
-          <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Hysiac GST Billing</p>
+          <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Hysiac Management App</p>
         </div>
 
         <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)] sm:p-8">
