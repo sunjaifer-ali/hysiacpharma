@@ -30,8 +30,7 @@ function LoginPage() {
   const { user, isPending } = useCurrentUserState();
   const web = useStaffSession();
   if (!isDesktopApp) {
-    if (!web.ready) return <LockSplash />;
-    if (web.session) return <Navigate to="/" />;
+    if (web.ready && web.session) return <Navigate to="/" />;
     return <LoginForm />;
   }
   if (isPending) return <LockSplash />;
