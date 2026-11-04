@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
+import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { useMemo, useState } from "react";
 import { PartyPicker } from "@/components/party-picker";
 import { ProductPicker } from "@/components/product-picker";
@@ -218,9 +218,14 @@ export function QuoteEditor({ existing }: { existing?: Quote }) {
           <div key={line.id} className="rounded-xl bg-secondary/50 p-3">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-medium">{idx + 1}. {line.name}</p>
-              <Button type="button" variant="ghost" size="icon" onClick={() => setLines((prev) => prev.filter((l) => l.id !== line.id))}>
-                <Trash2 className="size-4" />
-              </Button>
+              <DeleteVoucherButton
+                compact
+                allowBilling
+                title="Remove this line?"
+                description="The line leaves this quotation only after you confirm."
+                confirmLabel="Remove line"
+                onConfirm={() => setLines((prev) => prev.filter((l) => l.id !== line.id))}
+              />
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Field label="Qty">

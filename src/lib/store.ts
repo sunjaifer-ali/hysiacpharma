@@ -816,9 +816,14 @@ export const useBillingStore = create<BillingState>()(
       },
       setPurchaseOrderStatus: (id, status) =>
         set({
-          purchaseOrders: get().purchaseOrders.map((o) =>
-            o.id === id ? { ...o, status, updatedAt: new Date().toISOString() } : o,
-          ),
+          purchaseOrders: get().purchaseOrders.map((o) => {
+            if (o.id !== id) return o;
+            const now = new Date().toISOString();
+            if (status === "cancelled" && o.status !== "cancelled") {
+              return { ...o, status, statusBeforeCancel: o.status, updatedAt: now };
+            }
+            return { ...o, status, updatedAt: now };
+          }),
         }),
       deletePurchaseOrder: (id) => {
         const order = get().purchaseOrders.find((o) => o.id === id);

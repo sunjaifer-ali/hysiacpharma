@@ -463,6 +463,7 @@ export type PurchaseOrder = {
   neededBy: string;
   notes: string;
   lines: PurchaseOrderLine[];
+  statusBeforeCancel?: PurchaseOrderStatus;
   createdAt: string;
   updatedAt: string;
 };

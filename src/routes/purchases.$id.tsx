@@ -94,16 +94,33 @@ function PurchaseDetailPage() {
               Pay supplier
             </Button>
           ) : null}
+          {purchase.status === "cancelled" ? (
+            <DeleteVoucherButton
+              label="Undo cancel"
+              buttonVariant="outline"
+              allowBilling
+              title={`Put ${purchase.number} back?`}
+              description="The purchase returns to the accounts. The button stays locked for 10 seconds."
+              confirmLabel="Undo cancel"
+              onConfirm={() => {
+                setStatus(purchase.id, "posted");
+                toast.success("Purchase is active again");
+              }}
+            />
+          ) : null}
           {purchase.status === "posted" ? (
-            <Button
-              variant="outline"
-              onClick={() => {
+            <DeleteVoucherButton
+              label="Cancel"
+              buttonVariant="outline"
+              allowBilling
+              title={`Cancel ${purchase.number}?`}
+              description="A cancelled purchase stays in the list but is left out of the accounts. You can undo the cancel later."
+              confirmLabel="Cancel purchase"
+              onConfirm={() => {
                 setStatus(purchase.id, "cancelled");
                 toast.success("Purchase cancelled");
               }}
-            >
-              Cancel
-            </Button>
+            />
           ) : null}
           <DeleteVoucherButton
             title={`Delete ${purchase.number}?`}

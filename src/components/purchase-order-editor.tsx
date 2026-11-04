@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
+import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { useState } from "react";
 import { PartyPicker } from "@/components/party-picker";
 import { ProductPicker } from "@/components/product-picker";
@@ -171,15 +171,14 @@ export function PurchaseOrderEditor({
                     />
                   </td>
                   <td className="py-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Remove line"
-                      onClick={() => setLines((current) => current.filter((row) => row.id !== line.id))}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    <DeleteVoucherButton
+                      compact
+                      allowBilling
+                      title="Remove this line?"
+                      description="The line leaves this purchase order only after you confirm."
+                      confirmLabel="Remove line"
+                      onConfirm={() => setLines((current) => current.filter((row) => row.id !== line.id))}
+                    />
                   </td>
                 </tr>
               ))}

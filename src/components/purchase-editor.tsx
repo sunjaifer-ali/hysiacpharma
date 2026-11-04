@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { Copy, Plus } from "lucide-react";
+import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { useMemo, useState } from "react";
 import { PartyPicker } from "@/components/party-picker";
 import { ProductPicker } from "@/components/product-picker";
@@ -440,16 +441,14 @@ export function PurchaseEditor({ existing }: { existing?: Purchase }) {
                     <Copy className="size-4" />
                     <span className="sr-only">Duplicate line</span>
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-9"
-                    onClick={() => setLines((prev) => prev.filter((l) => l.id !== line.id))}
-                  >
-                    <Trash2 className="size-4" />
-                    <span className="sr-only">Remove line</span>
-                  </Button>
+                  <DeleteVoucherButton
+                    compact
+                    allowBilling
+                    title="Remove this line?"
+                    description="The line leaves this purchase only after you confirm. Save the bill afterwards."
+                    confirmLabel="Remove line"
+                    onConfirm={() => setLines((prev) => prev.filter((l) => l.id !== line.id))}
+                  />
                 </div>
               </div>
               {insurance ? (

@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { INDIAN_STATES, isValidGstin, panFromGstin } from "@/lib/gst";
 import { useBillingStore } from "@/lib/store";
 import type { CompanyProfile } from "@/lib/types";
-import { booksLoad } from "@/lib/staff-accounts";
+import { DeleteVoucherButton } from "@/components/delete-voucher";
+import { booksHistory, booksRestore } from "@/lib/staff-accounts";
 import { toast } from "sonner";
 import { AppLockCard } from "@/components/app-lock";
 import { isDesktopApp } from "@/lib/desktop";
@@ -22,6 +23,8 @@ function SettingsPage() {
   const company = useBillingStore((s) => s.company);
   const update = useBillingStore((s) => s.updateCompany);
   const [restoring, setRestoring] = useState(false);
+  const [backupChoices, setBackupChoices] = useState<{ id: string; label: string }[]>([]);
+  const [backupDay, setBackupDay] = useState("latest");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<CompanyProfile | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -33,6 +36,27 @@ function SettingsPage() {
     return () => {
       if (timer.current) window.clearInterval(timer.current);
     };
+  }, []);
+
+  useEffect(() => {
+    if (isDesktopApp) return;
+    void booksHistory()
+      .then((result) => {
+        if (!result.ok) return;
+        const next: { id: string; label: string }[] = [];
+        const latestDay = result.latest ? istDay(result.latest.savedAt) : "";
+        if (result.latest) next.push({ id: "latest", label: `Latest · ${formatBackupWhen(result.latest.savedAt)}` });
+        for (const day of result.days) {
+          if (day.day === latestDay) continue;
+          next.push({
+            id: day.day,
+            label: day.day.endsWith("#earlier") ? `Earlier today · ${formatBackupWhen(day.savedAt)}` : formatBackupWhen(day.savedAt),
+          });
+        }
+        setBackupChoices(next);
+        setBackupDay(next[0]?.id ?? "latest");
+      })
+      .catch(() => setBackupChoices([]));
   }, []);
 
   function stopWait() {
@@ -297,12 +321,13 @@ function SettingsPage() {
           <CardHeader>
             <CardTitle>Backup</CardTitle>
             <CardDescription>
-              Neon stores one copy of the books and replaces it after each change. Restore brings that copy back onto this browser.
+              A backup is saved when you make an entry. Today keeps the latest copy and the one before it. The last 3 days stay. Pick a date to put that copy back.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="flex flex-col gap-3">
             <Button
               variant="outline"
+              className="w-fit"
               onClick={() => {
                 const s = useBillingStore.getState();
                 downloadBackupFile(
@@ -326,44 +351,81 @@ function SettingsPage() {
             >
               Download backup
             </Button>
-            {isDesktopApp ? null : (
-              <Button
-                variant="outline"
-                disabled={restoring}
-                onClick={() => {
-                  if (!window.confirm("Replace the books on this browser with the copy saved in Neon? Anything not saved there will be lost.")) return;
-                  setRestoring(true);
-                  void booksLoad()
-                    .then((remote) => {
-                      if (!remote.ok) {
-                        toast.error(remote.error);
-                        return;
-                      }
-                      if (!remote.books) {
-                        toast.error("Neon has no backup yet");
-                        return;
-                      }
-                      const books = parseBooksBackup(remote.books);
-                      const event = new CustomEvent("hysiac-restore-books", {
-                        cancelable: true,
-                        detail: { books, updatedAt: remote.updatedAt },
-                      });
-                      window.dispatchEvent(event);
-                      if (!event.defaultPrevented) useBillingStore.getState().replaceAll(books);
-                      toast.success("Restored from Neon");
-                    })
-                    .catch(() => toast.error("Could not reach Neon"))
-                    .finally(() => setRestoring(false));
-                }}
-              >
-                {restoring ? "Restoring…" : "Restore from Neon"}
-              </Button>
+            {isDesktopApp ? null : backupChoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No backup date in Neon yet. Save a bill and the date will appear here.</p>
+            ) : (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Select value={backupDay} onValueChange={setBackupDay}>
+                  <SelectTrigger className="w-full sm:w-80">
+                    <SelectValue placeholder="Choose a backup date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {backupChoices.map((choice) => (
+                      <SelectItem key={choice.id} value={choice.id}>
+                        {choice.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <DeleteVoucherButton
+                  label={restoring ? "Restoring…" : "Restore this date"}
+                  buttonVariant="outline"
+                  title="Restore this backup?"
+                  description={`This replaces the books on this browser with ${backupChoices.find((choice) => choice.id === backupDay)?.label ?? "the selected backup"}. Bills entered after that copy are removed here, and this older copy becomes the live Neon copy.`}
+                  confirmLabel="Restore this date"
+                  onConfirm={() => {
+                    const label = backupChoices.find((choice) => choice.id === backupDay)?.label ?? "the selected backup";
+                    setRestoring(true);
+                    void booksRestore({ data: { day: backupDay } })
+                      .then((remote) => {
+                        if (!remote.ok) {
+                          toast.error(remote.error);
+                          return;
+                        }
+                        const books = parseBooksBackup(JSON.parse(remote.json) as unknown);
+                        const event = new CustomEvent("hysiac-restore-books", {
+                          cancelable: true,
+                          detail: { books, updatedAt: remote.updatedAt },
+                        });
+                        window.dispatchEvent(event);
+                        if (!event.defaultPrevented) useBillingStore.getState().replaceAll(books);
+                        toast.success(`Restored ${label}`);
+                      })
+                      .catch(() => toast.error("Could not reach Neon"))
+                      .finally(() => setRestoring(false));
+                  }}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
     </AppShell>
   );
+}
+
+function formatBackupWhen(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function istDay(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function Field({

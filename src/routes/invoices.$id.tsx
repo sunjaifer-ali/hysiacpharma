@@ -114,16 +114,35 @@ function InvoiceDetailPage() {
               Receive
             </Button>
           ) : null}
+          {invoice.status === "cancelled" ? (
+            <DeleteVoucherButton
+              label="Undo cancel"
+              buttonVariant="outline"
+              allowBilling
+              title={`Put ${invoice.number} back?`}
+              description="The invoice returns to the GST reports. The button stays locked for 10 seconds."
+              confirmLabel="Undo cancel"
+              onConfirm={() => {
+                const net = invoiceTotals(invoice).grand - credited;
+                const status = invoice.paidAmount >= net - 0.009 && invoice.paidAmount > 0 ? "paid" : invoice.paidAmount > 0.009 ? "partial" : "issued";
+                setStatus(invoice.id, status);
+                toast.success("Invoice is active again");
+              }}
+            />
+          ) : null}
           {invoice.status === "issued" || invoice.status === "partial" || invoice.status === "paid" ? (
-            <Button
-              variant="outline"
-              onClick={() => {
+            <DeleteVoucherButton
+              label="Cancel"
+              buttonVariant="outline"
+              allowBilling
+              title={`Cancel ${invoice.number}?`}
+              description="A cancelled invoice stays in the list but leaves the GST reports. You can undo the cancel later."
+              confirmLabel="Cancel invoice"
+              onConfirm={() => {
                 setStatus(invoice.id, "cancelled");
                 toast.success("Invoice cancelled");
               }}
-            >
-              Cancel
-            </Button>
+            />
           ) : null}
           <DeleteVoucherButton
             title={`Delete ${invoice.number}?`}

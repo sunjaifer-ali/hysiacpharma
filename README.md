@@ -1,9 +1,9 @@
-# Hysiac GST
+# Hysiac Management App
 
-GST billing for Hysiac Pharmaceuticals Pvt Ltd.
+This app is used only through the Vercel site. GitHub holds the source, Vercel hosts it, and Neon stores the sign-in and the books. There is no Windows, Android or iPhone app.
 
-The website (Vercel) opens on a user name and password. Default is `admin` / `admin`. Neon stores that sign-in. Invoices and stock stay in the browser — use Settings → Export JSON / Import JSON to copy them to the Android app or the Windows app.
+Open https://hysiacpharma.vercel.app and sign in. The same bills show on a phone, tablet, laptop and desktop.
 
-See [DEPLOY.txt](DEPLOY.txt) for GitHub, Vercel and Neon.
+See [DEPLOY.txt](DEPLOY.txt) for the three services.
 
 Developed by Jaifer Ali · 9995080431 · sunjaifer@gmail.com

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
+import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { useMemo, useState } from "react";
 import { InvoicePreview } from "@/components/invoice-preview";
 import { PartyPicker } from "@/components/party-picker";
@@ -417,16 +418,14 @@ export function InvoiceEditor({ existing, quoteId }: { existing?: Invoice; quote
             <div key={line.id} className="rounded-xl bg-secondary/50 p-3">
               <div className="mb-2 flex items-start justify-between gap-2">
                 <p className="text-xs text-muted-foreground">#{idx + 1}</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-9"
-                  onClick={() => setLines((prev) => prev.filter((l) => l.id !== line.id))}
-                >
-                  <Trash2 className="size-4" />
-                  <span className="sr-only">Remove line</span>
-                </Button>
+                <DeleteVoucherButton
+                  compact
+                  allowBilling
+                  title="Remove this line?"
+                  description="The line leaves this bill only after you confirm. Save the bill afterwards."
+                  confirmLabel="Remove line"
+                  onConfirm={() => setLines((prev) => prev.filter((l) => l.id !== line.id))}
+                />
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="space-y-1 sm:col-span-2">

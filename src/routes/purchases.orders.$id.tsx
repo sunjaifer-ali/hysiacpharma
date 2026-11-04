@@ -87,15 +87,33 @@ function PurchaseOrderPage() {
             </Button>
           ) : null}
           {order.status !== "cancelled" ? (
-            <Button
-              variant="outline"
-              onClick={() => {
+            <DeleteVoucherButton
+              label="Cancel"
+              buttonVariant="outline"
+              allowBilling
+              title={`Cancel ${order.number}?`}
+              description="A cancelled purchase order stays in the list and is not sent. You can undo the cancel later."
+              confirmLabel="Cancel order"
+              onConfirm={() => {
                 setStatus(order.id, "cancelled");
                 toast.success("Order cancelled");
               }}
-            >
-              Cancel
-            </Button>
+            />
+          ) : null}
+          {order.status === "cancelled" ? (
+            <DeleteVoucherButton
+              label="Undo cancel"
+              buttonVariant="outline"
+              allowBilling
+              title={`Put ${order.number} back?`}
+              description="The purchase order becomes active again. The button stays locked for 10 seconds."
+              confirmLabel="Undo cancel"
+              onConfirm={() => {
+                const prior = order.statusBeforeCancel;
+                setStatus(order.id, prior && prior !== "cancelled" ? prior : "draft");
+                toast.success("Order is active again");
+              }}
+            />
           ) : null}
           <DeleteVoucherButton
             title="Delete purchase order"

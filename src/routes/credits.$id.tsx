@@ -3,6 +3,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { CreditNotePreview } from "@/components/credit-note-preview";
+import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/format";
@@ -102,16 +103,33 @@ function CreditDetailPage() {
               </Button>
             </>
           ) : null}
+          {note.status === "cancelled" ? (
+            <DeleteVoucherButton
+              label="Undo cancel"
+              buttonVariant="outline"
+              allowBilling
+              title={`Put ${note.number} back?`}
+              description="The credit note returns to the GST reports. The button stays locked for 10 seconds."
+              confirmLabel="Undo cancel"
+              onConfirm={() => {
+                setStatus(note.id, "issued");
+                toast.success("Credit note is active again");
+              }}
+            />
+          ) : null}
           {note.status === "issued" ? (
-            <Button
-              variant="outline"
-              onClick={() => {
+            <DeleteVoucherButton
+              label="Cancel"
+              buttonVariant="outline"
+              allowBilling
+              title={`Cancel ${note.number}?`}
+              description="A cancelled credit note stays in the list but leaves the GST reports. You can undo the cancel later."
+              confirmLabel="Cancel credit note"
+              onConfirm={() => {
                 setStatus(note.id, "cancelled");
                 toast.success("Credit note cancelled");
               }}
-            >
-              Cancel
-            </Button>
+            />
           ) : null}
         </div>
       </div>

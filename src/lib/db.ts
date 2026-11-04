@@ -191,6 +191,9 @@ async function createSql(): Promise<Sql> {
  * both backends — define tables there, never inline in server functions.
  */
 export function getSql(): Promise<Sql> {
+  if (process.env.VERCEL === "1" && !databaseUrl) {
+    return Promise.reject(new Error("DATABASE_URL is required. Connect Neon on Vercel and redeploy."));
+  }
   sqlPromise ??= createSql().catch((err) => {
     sqlPromise = null; // don't memoize failures — let the next call retry
     throw err;

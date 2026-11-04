@@ -73,8 +73,8 @@ function ReportsPage() {
 
   const live = invoices.filter((i) => i.status !== "draft" && i.status !== "cancelled" && inRange(i.date, range));
   const notes = creditNotes.filter((n) => n.status === "issued" && inRange(n.date, range));
-  const b2b = live.filter((i) => i.party.gstin);
-  const b2c = live.filter((i) => !i.party.gstin);
+  const b2b = live.filter((i) => i.party?.gstin);
+  const b2c = live.filter((i) => !i.party?.gstin);
   const outsideSales = invoices.filter(
     (i) => (i.status === "issued" || i.status === "partial" || i.status === "paid") && !inRange(i.date, range),
   ).length;

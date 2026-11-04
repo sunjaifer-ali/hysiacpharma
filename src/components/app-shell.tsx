@@ -8,6 +8,7 @@ import {
   Landmark,
   LayoutDashboard,
   Menu,
+  MoreHorizontal,
   Package,
   Plus,
   ScrollText,
@@ -27,6 +28,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { HysiacMark } from "@/components/logo";
 import { BackupEngine } from "@/components/backup-engine";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -35,51 +37,61 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/invoices", label: "Invoices", icon: FileText },
-  { to: "/quotes", label: "Quotations", icon: FileSignature },
-  { to: "/returns", label: "Returns", icon: Undo2 },
-  { to: "/credits", label: "Credit notes", icon: ScrollText },
-  { to: "/purchases", label: "Purchases", icon: ClipboardList },
-  { to: "/payments", label: "Payments", icon: Wallet },
-  { to: "/products", label: "Products", icon: Package },
-  { to: "/parties", label: "Parties", icon: Users },
-  { to: "/reports", label: "Reports", icon: BookOpen },
-  { to: "/accounts", label: "Accounts", icon: Landmark },
-  { to: "/settings", label: "Settings", icon: Settings },
-  { to: "/users", label: "Users", icon: UserRoundPlus },
-  { to: "/bin", label: "Recycle bin", icon: ArchiveRestore },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, group: "Selling" },
+  { to: "/invoices", label: "Invoices", icon: FileText, group: "Selling" },
+  { to: "/quotes", label: "Quotations", icon: FileSignature, group: "Selling" },
+  { to: "/returns", label: "Returns", icon: Undo2, group: "Selling" },
+  { to: "/credits", label: "Credit notes", icon: ScrollText, group: "Selling" },
+  { to: "/purchases", label: "Purchases", icon: ClipboardList, group: "Buying" },
+  { to: "/payments", label: "Payments", icon: Wallet, group: "Buying" },
+  { to: "/products", label: "Products", icon: Package, group: "Stock" },
+  { to: "/parties", label: "Parties", icon: Users, group: "Stock" },
+  { to: "/reports", label: "Reports", icon: BookOpen, group: "Office" },
+  { to: "/accounts", label: "Accounts", icon: Landmark, group: "Office" },
+  { to: "/settings", label: "Settings", icon: Settings, group: "Office" },
+  { to: "/users", label: "Users", icon: UserRoundPlus, group: "Office" },
+  { to: "/bin", label: "Recycle bin", icon: ArchiveRestore, group: "Office" },
 ] as const;
 
-function NavLinks({ onNavigate, role }: { onNavigate?: () => void; role: WebRole | "desktop" }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const items = NAV.filter((item) => {
+const GROUPS = ["Selling", "Buying", "Stock", "Office"] as const;
+
+function visibleNav(role: WebRole | "desktop") {
+  return NAV.filter((item) => {
     if (item.to === "/users" && role === "desktop") return false;
     return role === "desktop" || role === "admin" || canOpen(role, item.to);
   });
+}
+
+function NavLinks({ onNavigate, role }: { onNavigate?: () => void; role: WebRole | "desktop" }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const items = visibleNav(role);
   return (
     <nav className="flex flex-col gap-1">
-      {items.map((item) => {
-        const active =
-          item.to === "/"
-            ? pathname === "/"
-            : pathname === item.to || pathname.startsWith(`${item.to}/`);
-        const Icon = item.icon;
+      {GROUPS.map((group) => {
+        const rows = items.filter((item) => item.group === group);
+        if (rows.length === 0) return null;
         return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors min-h-11",
-              active
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
-          >
-            <Icon className="size-4 shrink-0" />
-            <span>{item.label}</span>
-          </Link>
+          <div key={group} className="mb-2">
+            <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{group}</p>
+            {rows.map((item) => {
+              const active = item.to === "/" ? pathname === "/" : pathname === item.to || pathname.startsWith(`${item.to}/`);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors min-h-11",
+                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
         );
       })}
     </nav>
@@ -207,15 +219,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
         <div className={cn("app-shell-pad mx-auto w-full px-4 pb-24 pt-6 sm:px-6 md:pb-10 md:pt-8", wide ? "max-w-[1400px]" : "max-w-6xl")}>{children}</div>
       </div>
 
-      <nav className="no-print fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-border bg-card/95 px-1 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden">
-        {NAV.filter((item) => {
-          if (role === "billing") return item.to === "/" || item.to === "/invoices" || item.to === "/products" || item.to === "/parties" || item.to === "/returns";
-          return item.to === "/" || item.to === "/invoices" || item.to === "/returns" || item.to === "/purchases" || item.to === "/products";
-        }).map((item) => {
-          const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
-          return <MobileTab key={item.to} item={item} pathname={pathname} />;
-        })}
-      </nav>
+      <PhoneBar role={role} />
       {isDesktopApp ? <BackupEngine /> : null}
     </div>
   );
@@ -267,17 +271,13 @@ function MustChangePassword({ id }: { id: string }) {
   );
 }
 
-function WebAccountChip({ session }: { session: { username: string; role: WebRole } | null }) {
+function WebAccountChip({ session }: { session: { id: string; username: string; role: WebRole } | null }) {
   if (!session) return null;
   return (
     <div className="space-y-1">
       <p className="text-sm font-medium">{session.username}</p>
       <p className="text-[11px] text-muted-foreground">{session.role === "admin" ? "Full access" : "Billing and products"}</p>
-      {session.role === "admin" ? (
-        <Link to="/users" className="block text-sm font-medium text-primary">
-          Change password
-        </Link>
-      ) : null}
+      <OwnPassword id={session.id} />
       <button
         type="button"
         className="text-sm underline-offset-4 opacity-70 hover:underline"
@@ -288,6 +288,94 @@ function WebAccountChip({ session }: { session: { username: string; role: WebRol
         Sign out
       </button>
     </div>
+  );
+}
+
+function OwnPassword({ id }: { id: string }) {
+  const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button type="button" className="block text-sm font-medium text-primary">
+          Change password
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Change password</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            void staffSetPassword({ data: { id, password, currentPassword } })
+              .then((result) => {
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
+                }
+                toast.success("Password changed");
+                setCurrentPassword("");
+                setPassword("");
+                setOpen(false);
+              })
+              .finally(() => setBusy(false));
+          }}
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor="own-current">Current password</Label>
+            <Input id="own-current" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="own-next">New password</Label>
+            <Input id="own-next" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? "Please wait…" : "Save password"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PhoneBar({ role }: { role: WebRole | "desktop" }) {
+  const [more, setMore] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const pinned = role === "billing" ? ["/", "/invoices", "/products", "/parties"] : ["/", "/invoices", "/purchases", "/products"];
+  const primary = pinned
+    .map((to) => NAV.find((item) => item.to === to))
+    .filter((item): item is (typeof NAV)[number] => !!item && visibleNav(role).some((row) => row.to === item.to));
+  const moreActive = !primary.some((item) => (item.to === "/" ? pathname === "/" : pathname === item.to || pathname.startsWith(`${item.to}/`)));
+  return (
+    <Sheet open={more} onOpenChange={setMore}>
+      <nav className="no-print fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-border bg-card/95 px-1 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden">
+        {primary.map((item) => (
+          <MobileTab key={item.to} item={item} pathname={pathname} />
+        ))}
+        <button
+          type="button"
+          className={cn("flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-medium", more || moreActive ? "text-primary" : "text-muted-foreground")}
+          onClick={() => setMore(true)}
+        >
+          <MoreHorizontal className="size-4" />
+          More
+        </button>
+      </nav>
+      <SheetContent side="bottom" className="max-h-[80dvh] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>More</SheetTitle>
+        </SheetHeader>
+        <div className="mt-4">
+          <NavLinks role={role} onNavigate={() => setMore(false)} />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

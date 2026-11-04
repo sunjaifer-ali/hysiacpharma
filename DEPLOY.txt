@@ -1,38 +1,37 @@
-Hysiac GST — website hosting (GitHub + Vercel + Neon)
-=====================================================
+Hysiac Management App — GitHub + Vercel + Neon
+================================================
 
-Bills, products and parties are saved in Neon. Set DATABASE_URL on Vercel to the Neon connection string, then redeploy. Without that, a bill stays in the browser only.
+This is the only way the app runs. Do not install a Windows, Android or iPhone copy.
 
-Sign in with admin / admin the first time.
-Open Users in the left menu to change the admin password or add another user.
-The same books then show on a phone, tablet, laptop and desktop.
+The live site is https://hysiacpharma.vercel.app
+Bills, products, parties and users are stored in Neon. A phone, tablet, laptop and desktop all open that same site.
 
-1. Neon (free database for the sign-in)
-   - Open https://neon.tech and create a free project named hysiac-gst.
-   - Copy the connection string. It looks like:
+1. Neon
+   - Open https://neon.tech and use the free project for this app.
+   - Copy the pooled connection string:
      postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
-   - Use the pooled string if Neon shows one.
 
 2. GitHub
-   - Unzip this file.
-   - Put every folder and file inside the empty repository:
-     https://github.com/sunjaifer-ali/hysiac-gst
-   - Do not upload node_modules. It is not in this zip. Vercel installs it.
-   - The Android signing key is not in this zip.
+   - The source is the repository connected to Vercel.
+   - Do not commit node_modules.
+   - Push to the main branch. Vercel deploys from that push.
 
-3. Vercel (free hosting)
-   - Open the project hysiac-gst on Vercel.
-   - Connect the GitHub repository sunjaifer-ali/hysiac-gst.
-   - Settings → Environment Variables, for Production and Preview:
+3. Vercel
+   - Project connected to that GitHub repository.
+   - Framework is detected from the repository. Build command is npm run build.
+   - Environment variables, for Production and Preview:
 
-     DATABASE_URL          the Neon connection string
+     DATABASE_URL          the Neon pooled connection string
      VITE_AUTH_ENABLED     true
-     BETTER_AUTH_SECRET    a long random password you invent (at least 32 characters)
-     BETTER_AUTH_URL       https://hysiac-gst.vercel.app
-                           (use the real address Vercel shows, if it is different)
+     BETTER_AUTH_SECRET    a long random password, at least 32 characters
+     BETTER_AUTH_URL       https://hysiacpharma.vercel.app
 
-   - Deploy. The first build creates the sign-in tables in Neon.
-   - Open the site and sign in with admin / admin.
+   - Redeploy after changing any variable.
+   - The first request creates the tables in Neon.
+   - Sign in, then change the admin password under Users.
 
 If sign-in says the origin is not allowed, set BETTER_AUTH_URL to the exact
-address in the browser (including https) and deploy again.
+address in the browser, including https, and deploy again.
+
+Without DATABASE_URL the live site will not open the books. It does not keep
+a separate copy on the server.

@@ -22,6 +22,19 @@ function snapshot(): BooksSnapshot {
   };
 }
 
+function entryMark(books: BooksSnapshot): string {
+  return JSON.stringify([
+    books.invoices,
+    books.purchases,
+    books.purchaseOrders,
+    books.quotes,
+    books.creditNotes,
+    books.payments,
+    books.adjustments ?? [],
+    books.openingDues ?? [],
+  ]);
+}
+
 function count(list: { length: number } | undefined): number {
   return list?.length ?? 0;
 }
@@ -46,6 +59,7 @@ export function BooksSync() {
     let applying = false;
     let initialized = false;
     let lastFp = "";
+    let lastEntry = "";
     let lastUpdated: string | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let saveChain: Promise<void> = Promise.resolve();
@@ -62,6 +76,7 @@ export function BooksSync() {
       try {
         useBillingStore.getState().replaceAll(books);
         lastFp = booksFingerprint(snapshot());
+        lastEntry = entryMark(snapshot());
         lastUpdated = updatedAt;
         dirty = false;
       } finally {
@@ -77,12 +92,15 @@ export function BooksSync() {
         const versionAtStart = changeVersion;
         const books = snapshot();
         const fp = booksFingerprint(books);
+        const mark = entryMark(books);
         if (fp === lastFp) {
           if (versionAtStart === changeVersion) dirty = false;
           return;
         }
         try {
-          const result = await booksSave({ data: { json: JSON.stringify(books) } });
+          const result = await booksSave({
+            data: { json: JSON.stringify(books), backup: mark !== lastEntry, baseUpdatedAt: lastUpdated ?? "" },
+          });
           if (stop) return;
           if (!result.ok) {
             report(`Save rejected by server: ${result.error}`);
@@ -93,7 +111,15 @@ export function BooksSync() {
             return;
           }
           retryCount = 0;
+          if (result.merged) {
+            const parsed = JSON.parse(result.merged) as BooksSnapshot;
+            apply(parsed, result.updatedAt);
+            dirty = versionAtStart !== changeVersion;
+            if (dirty) queueSave(0);
+            return;
+          }
           lastFp = fp;
+          if (mark !== lastEntry) lastEntry = mark;
           lastUpdated = result.updatedAt;
           // A change made while this request was in flight must remain dirty and be saved next.
           dirty = versionAtStart !== changeVersion || booksFingerprint(snapshot()) !== fp;
@@ -145,27 +171,37 @@ export function BooksSync() {
           report(`Initial load rejected by server: ${remote.error}`);
           initialized = true;
           // Preserve current state and attempt to persist it instead of silently losing changes.
-          if (hasWork(snapshot())) { dirty = true; queueSave(0); }
+          if (hasWork(snapshot())) {
+            lastEntry = entryMark(snapshot());
+            dirty = true;
+            queueSave(0);
+          }
           return;
         }
         initialized = true;
         if (changeVersion !== versionBeforeLoad || dirty) {
           // The user changed local data while the initial request was pending; save it, don't overwrite it.
-          if (hasWork(snapshot())) { dirty = true; queueSave(0); }
+          if (hasWork(snapshot())) {
+            dirty = true;
+            queueSave(0);
+          }
           return;
         }
         if (remote.books) {
           apply(remote.books as BooksSnapshot, remote.updatedAt);
         } else if (hasWork(snapshot())) {
+          lastEntry = entryMark(snapshot());
           dirty = true;
           queueSave(0);
         } else {
           lastFp = booksFingerprint(snapshot());
+          lastEntry = entryMark(snapshot());
         }
       } catch (error) {
         report("Initial load failed", error);
         initialized = true;
         if (hasWork(snapshot())) {
+          lastEntry = entryMark(snapshot());
           dirty = true;
           queueSave(0);
         }
@@ -180,15 +216,32 @@ export function BooksSync() {
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden" && dirty) queueSave(0);
     };
+    let flushPatched = false;
     const onPageHide = () => {
       if (timer) clearTimeout(timer);
-      if (dirty) saveLatest();
+      if (!dirty) return;
+      if (!flushPatched) {
+        flushPatched = true;
+        const original = window.fetch.bind(window);
+        window.fetch = (input, init) => {
+          const body = init?.body;
+          const size = typeof body === "string" ? body.length : 0;
+          if (size > 0 && size < 60_000) return original(input, { ...init, keepalive: true });
+          return original(input, init);
+        };
+      }
+      saveLatest();
     };
     const onRestore = (event: Event) => {
       const detail = (event as CustomEvent<{ books: BooksSnapshot; updatedAt: string | null }>).detail;
       if (!detail?.books) return;
       event.preventDefault();
       apply(detail.books, detail.updatedAt);
+      // The restored copy must replace the live Neon row, or the next refresh puts the old books back.
+      lastFp = "";
+      dirty = true;
+      changeVersion += 1;
+      queueSave(0);
     };
     window.addEventListener("hysiac-restore-books", onRestore);
     window.addEventListener("focus", onFocus);
