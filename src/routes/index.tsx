@@ -8,7 +8,8 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatINR, formatINRCompact, monthKey, monthLabel } from "@/lib/format";
-import { currentFinancialYear, invoiceTotals } from "@/lib/gst";
+import { invoiceTotals } from "@/lib/gst";
+import { inferYearId, yearLabel, yearRange } from "@/lib/financial-year";
 import { invoiceNetDue } from "@/lib/returns";
 import { useBillingStore, useHasHydrated } from "@/lib/store";
 
@@ -21,7 +22,7 @@ function Home() {
   const creditNotes = useBillingStore((s) => s.creditNotes);
   const openingDues = useBillingStore((s) => s.openingDues);
   const company = useBillingStore((s) => s.company);
-  const fy = currentFinancialYear();
+  const fy = yearRange(inferYearId(company));
 
   const live = invoices.filter((i) => i.status !== "cancelled" && i.status !== "draft");
   const fyInvoices = live.filter((i) => {
@@ -89,7 +90,7 @@ function Home() {
             <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Hysiac Pharmaceuticals Pvt Ltd</p>
             <h1 className="font-display text-3xl text-foreground sm:text-4xl">Dashboard</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {company.city} · FY {fy.label}
+              {company.city} · FY {yearLabel(inferYearId(company))}
               {hydrated ? "" : " · loading books"}
             </p>
           </div>

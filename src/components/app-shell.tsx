@@ -25,6 +25,7 @@ import { canOpen, type WebRole } from "@/lib/web-users";
 import { staffSignOut, staffSetPassword } from "@/lib/staff-accounts";
 import { useStaffSession } from "@/lib/staff-session";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { YearSwitch } from "@/components/year-switch";
 import { HysiacMark } from "@/components/logo";
 import { BackupEngine } from "@/components/backup-engine";
 import { Button } from "@/components/ui/button";
@@ -193,6 +194,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
               <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Management</p>
             </div>
           </Link>
+          <YearSwitch canChange={role === "admin" || role === "desktop"} />
         </div>
         <Button asChild size="sm">
           <Link to="/invoices/new">
@@ -203,7 +205,9 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
       </header>
 
       <div className="app-shell-main overflow-x-clip md:pl-60">
-        <div className="no-print sticky top-0 z-20 hidden items-center justify-end gap-2 border-b border-border bg-background/85 px-6 py-3 backdrop-blur-md md:flex">
+        <div className="no-print sticky top-0 z-20 hidden items-center justify-between gap-2 border-b border-border bg-background/85 px-6 py-3 backdrop-blur-md md:flex">
+          <YearSwitch canChange={role === "admin" || role === "desktop"} />
+          <div className="flex items-center gap-2">
           <Button asChild size="sm">
             <Link to="/invoices/new">
               <Plus className="size-4" />
@@ -215,6 +219,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
               <Link to="/purchases/new">New purchase</Link>
             </Button>
           ) : null}
+          </div>
         </div>
         <div className={cn("app-shell-pad mx-auto w-full px-4 pb-24 pt-6 sm:px-6 md:pb-10 md:pt-8", wide ? "max-w-[1400px]" : "max-w-6xl")}>{children}</div>
       </div>

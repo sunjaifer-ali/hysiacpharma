@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateDMY } from "@/lib/format";
-import { currentMonthRange, currentQuarterRange, financialYearRange, lastMonthRange } from "@/lib/gst";
+import { inferYearId, yearRange } from "@/lib/financial-year";
+import { currentMonthRange, currentQuarterRange, lastMonthRange } from "@/lib/gst";
+import { useBillingStore } from "@/lib/store";
 import { inRange } from "@/lib/registers";
 
 type Preset = "last" | "month" | "quarter" | "year" | "custom";
@@ -19,7 +21,7 @@ function rangeFor(key: Exclude<Preset, "custom">) {
   if (key === "last") return lastMonthRange();
   if (key === "month") return currentMonthRange();
   if (key === "quarter") return currentQuarterRange();
-  return financialYearRange();
+  return yearRange(inferYearId(useBillingStore.getState().company));
 }
 
 export function useVoucherPeriod() {

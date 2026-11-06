@@ -51,6 +51,8 @@ export type CompanyProfile = {
   bankBranch: string;
   invoicePrefix: string;
   nextNumber: number;
+  /** Financial year of these books, such as 2026-27. */
+  financialYear?: string;
   purchasePrefix: string;
   nextPurchaseNumber: number;
   purchaseOrderPrefix: string;

@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, getRequest, setCookie } from "@tanstack/react-start/server";
+import { freshFinancialYear, inferYearId } from "@/lib/financial-year";
 import { getSql } from "@/lib/db";
 
 const COOKIE = "hysiac_staff";
@@ -404,12 +405,23 @@ export const booksSave = createServerFn({ method: "POST" })
     }
     const json = JSON.stringify(payload);
     if (json.length > 4_000_000) return { ok: false, error: "Books are too large" };
+    const storedYear = stored ? inferYearId(stored.company as { invoicePrefix?: string; financialYear?: string }) : "";
+    const nextYear = inferYearId(payload.company as { invoicePrefix?: string; financialYear?: string });
+    if (stored && storedYear !== nextYear) {
+      return { ok: false, error: "These books are for a different financial year. Refresh the page." };
+    }
     const rows = await sql<{ updated_at: string }>`
       insert into shop_books (id, data, updated_at, updated_by)
       values (${"shop"}, ${json}::jsonb, now(), ${me.username})
       on conflict (id) do update
       set data = excluded.data, updated_at = now(), updated_by = excluded.updated_by
       returning updated_at::text as updated_at
+    `;
+    await sql`
+      insert into shop_books (id, data, updated_at, updated_by)
+      values (${`year:${nextYear}`}, ${json}::jsonb, now(), ${me.username})
+      on conflict (id) do update
+      set data = excluded.data, updated_at = now(), updated_by = excluded.updated_by
     `;
     if (data.backup) {
       await sql`
@@ -479,3 +491,78 @@ export const booksRestore = createServerFn({ method: "POST" })
     if (!rows[0]) return { ok: false as const, error: "That backup date was not found" };
     return { ok: true as const, json: asJson(rows[0].data), updatedAt: rows[0].saved_at };
   });
+
+export const booksYears = createServerFn({ method: "GET" }).handler(async () => {
+  const me = await current();
+  if (!me) return { ok: false as const, error: "Sign in again", years: [] as string[] };
+  const sql = await ready();
+  const rows = await sql<{ id: string }>`select id from shop_books where id like ${"year:%"} order by id`;
+  const live = await sql<{ data: unknown }>`select data from shop_books where id = ${"shop"} limit 1`;
+  const currentYear = live[0] ? inferYearId(yearCompany(live[0].data)) : "";
+  const years: string[] = [...new Set([...rows.map((row) => String(row.id).slice(5)), ...(currentYear ? [currentYear] : [])])].sort();
+  return { ok: true as const, years, current: currentYear };
+});
+
+export const booksUseYear = createServerFn({ method: "POST" })
+  .validator((data: { json?: string; year?: string; start?: boolean }) => {
+    const json = String(data?.json ?? "");
+    const year = String(data?.year ?? "");
+    if (!/^\d{4}-\d{2}$/.test(year)) throw new Error("Choose a financial year");
+    if (json.length < 2 || json.length > 4_000_000) throw new Error("Books are empty or too large");
+    return { json, year, start: data?.start === true };
+  })
+  .handler(async ({ data }) => {
+    const me = await current();
+    if (!me || me.role !== "admin") return { ok: false as const, error: "Only a full-access user can change the financial year" };
+    if (me.mustChange) return { ok: false as const, error: "Change the password before opening the books" };
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(data.json) as Record<string, unknown>;
+    } catch {
+      return { ok: false as const, error: "Books are not valid" };
+    }
+    if (!parsed.company || !Array.isArray(parsed.invoices)) return { ok: false as const, error: "Books are not valid" };
+    const sql = await ready();
+    const currentYear = inferYearId(parsed.company as { invoicePrefix?: string; financialYear?: string });
+    const currentJson = JSON.stringify({ ...parsed, company: { ...(parsed.company as object), financialYear: currentYear } });
+    await sql`
+      insert into shop_books (id, data, updated_at, updated_by)
+      values (${`year:${currentYear}`}, ${currentJson}::jsonb, now(), ${me.username})
+      on conflict (id) do update
+      set data = excluded.data, updated_at = now(), updated_by = excluded.updated_by
+    `;
+    const existing = await sql<{ data: unknown }>`select data from shop_books where id = ${`year:${data.year}`} limit 1`;
+    let nextJson = "";
+    if (data.start) {
+      if (data.year === currentYear) return { ok: false as const, error: "This financial year is already open" };
+      if (existing[0]) return { ok: false as const, error: "That year already exists. Open it from the year list." };
+      if (data.year < currentYear) return { ok: false as const, error: "Open the earlier year from the list" };
+      nextJson = JSON.stringify(freshFinancialYear(JSON.parse(currentJson), data.year));
+    } else if (data.year === currentYear) {
+      nextJson = currentJson;
+    } else if (!existing[0]) {
+      return { ok: false as const, error: "That financial year has not been started" };
+    } else {
+      nextJson = typeof existing[0].data === "string" ? existing[0].data : JSON.stringify(existing[0].data);
+    }
+    const rows = await sql<{ updated_at: string }>`
+      insert into shop_books (id, data, updated_at, updated_by)
+      values (${"shop"}, ${nextJson}::jsonb, now(), ${me.username})
+      on conflict (id) do update
+      set data = excluded.data, updated_at = now(), updated_by = excluded.updated_by
+      returning updated_at::text as updated_at
+    `;
+    await sql`
+      insert into shop_books (id, data, updated_at, updated_by)
+      values (${`year:${data.year}`}, ${nextJson}::jsonb, now(), ${me.username})
+      on conflict (id) do update
+      set data = excluded.data, updated_at = now(), updated_by = excluded.updated_by
+    `;
+    return { ok: true as const, json: nextJson, updatedAt: rows[0]?.updated_at ?? new Date().toISOString() };
+  });
+
+function yearCompany(data: unknown): { invoicePrefix?: string; financialYear?: string } {
+  const parsed = typeof data === "string" ? JSON.parse(data) : data;
+  if (!parsed || typeof parsed !== "object") return {};
+  return ((parsed as { company?: { invoicePrefix?: string; financialYear?: string } }).company ?? {});
+}

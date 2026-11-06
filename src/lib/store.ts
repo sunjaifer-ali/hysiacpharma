@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { todayISO } from "./format";
+import { inferYearId } from "./financial-year";
 import { calcLine, formatInvoiceNumber, invoiceTotals, isIntraState, isValidGstin, round2 } from "./gst";
 import { normalizeProduct, priceListForChannel } from "./pricing";
 import { invoiceNetDue, remainingReturnable } from "./returns";
@@ -319,6 +320,7 @@ function normalizeCompany(c: CompanyProfile): CompanyProfile {
     nextReceiptNumber: c.nextReceiptNumber ?? 1,
     paymentVoucherPrefix: c.paymentVoucherPrefix ?? "HY/PV/2627/",
     nextPaymentVoucherNumber: c.nextPaymentVoucherNumber ?? 1,
+    financialYear: c.financialYear && /^\d{4}-\d{2}$/.test(c.financialYear) ? c.financialYear : inferYearId(c),
     salesman: c.salesman ?? "DIRECT",
     drugLicense20,
     drugLicense21,

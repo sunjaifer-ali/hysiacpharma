@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { FileSpreadsheet, Printer } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompactTable, GstRegister } from "@/components/gst-register";
 import { downloadExcel } from "@/lib/excel";
 import { formatDateDMY, formatINR } from "@/lib/format";
-import { currentFinancialYear, currentMonthRange, currentQuarterRange, financialYearRange, invoiceTotals, lastMonthRange, round2, stateName } from "@/lib/gst";
+import { inferYearId, yearRange } from "@/lib/financial-year";
+import { currentMonthRange, currentQuarterRange, invoiceTotals, lastMonthRange, round2, stateName } from "@/lib/gst";
 import {
   PURCHASE_HEADS,
   SALES_HEADS,
@@ -51,10 +52,14 @@ function ReportsPage() {
   const products = useBillingStore((s) => s.products);
   const creditNotes = useBillingStore((s) => s.creditNotes);
   const adjustments = useBillingStore((s) => s.adjustments);
-  const fy = currentFinancialYear();
-  const fyTo = `${fy.end}-03-31`;
-  const [from, setFrom] = useState(`${fy.start}-04-01`);
-  const [to, setTo] = useState(fyTo);
+  const yearId = inferYearId(company);
+  const fy = yearRange(yearId);
+  const [from, setFrom] = useState(fy.from);
+  const [to, setTo] = useState(fy.to);
+  useEffect(() => {
+    setFrom(fy.from);
+    setTo(fy.to);
+  }, [yearId, fy.from, fy.to]);
   const [tab, setTab] = useState<ReportKey>("sales-gst");
   const range: DateRange = { from, to };
   const printOrient = REPORT_ORIENT[tab];
@@ -304,7 +309,7 @@ function ReportsPage() {
           <Button
             variant="secondary"
             onClick={() => {
-              const r = financialYearRange();
+              const r = yearRange(yearId);
               setFrom(r.from);
               setTo(r.to);
             }}
@@ -328,7 +333,7 @@ function ReportsPage() {
               className="font-medium text-primary underline-offset-2 hover:underline"
               onClick={() => {
                 setFrom(`${fy.start}-04-01`);
-                setTo(fyTo);
+                setTo(fy.to);
               }}
             >
               Show the full year
