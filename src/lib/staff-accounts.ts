@@ -195,6 +195,49 @@ export const staffSignIn = createServerFn({ method: "POST" })
     };
   });
 
+function recoveryReady(): boolean {
+  return (process.env.PASSWORD_RECOVERY_CODE?.trim().length ?? 0) >= 8;
+}
+
+function recoveryMatches(given: string): boolean {
+  const expected = process.env.PASSWORD_RECOVERY_CODE?.trim() ?? "";
+  if (expected.length < 8) return false;
+  const a = createHash("sha256").update(given).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
+export const staffRecover = createServerFn({ method: "POST" })
+  .validator((data: { username?: string; recoveryCode?: string; password?: string }) => ({
+    username: String(data?.username ?? ""),
+    recoveryCode: String(data?.recoveryCode ?? ""),
+    password: String(data?.password ?? ""),
+  }))
+  .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    if (!recoveryReady()) return { ok: false, error: "Password recovery is not set up yet" };
+    const sql = await ready();
+    const name = cleanName(data.username).slice(0, 64);
+    const ip = clientIp();
+    if (await loginBlocked(sql, name || "recover", ip)) {
+      return { ok: false, error: "Too many tries. Wait 15 minutes." };
+    }
+    const weak = passwordProblem(data.password);
+    if (!name || !recoveryMatches(data.recoveryCode) || weak) {
+      await sql`insert into staff_login_attempt (username, ip) values (${name || "recover"}, ${ip})`;
+      return { ok: false, error: weak && recoveryMatches(data.recoveryCode) ? weak : "Wrong recovery code or user name" };
+    }
+    const updated = await sql<{ id: string }>`
+      update staff_account set password_hash = ${hashPassword(data.password)}, must_change = ${false} where username = ${name} returning id
+    `;
+    if (!updated[0]) {
+      await sql`insert into staff_login_attempt (username, ip) values (${name}, ${ip})`;
+      return { ok: false, error: "Wrong recovery code or user name" };
+    }
+    await sql`delete from staff_session where user_id = ${updated[0].id}`;
+    await sql`delete from staff_login_attempt where username = ${name}`;
+    return { ok: true };
+  });
+
 export const staffSignOut = createServerFn({ method: "POST" }).handler(async () => {
   const token = getCookie(COOKIE);
   if (token) {

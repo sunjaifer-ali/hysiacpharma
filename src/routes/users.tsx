@@ -16,6 +16,8 @@ function UsersPage() {
   const [users, setUsers] = useState<StaffPublic[]>([]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [resetId, setResetId] = useState("");
+  const [resetPass, setResetPass] = useState("");
   const [role, setRole] = useState<StaffRole>("billing");
   const [currentPassword, setCurrentPassword] = useState("");
   const [ownPassword, setOwnPassword] = useState("");
@@ -89,7 +91,40 @@ function UsersPage() {
                     <span className="ml-2 text-muted-foreground">{user.role === "admin" ? "Full access" : "Billing and products"}</span>
                   </span>
                   {user.id !== session?.id ? (
-                    <Button
+                    <div className="flex flex-wrap items-center gap-2">
+                      {resetId === user.id ? (
+                        <>
+                          <Input
+                            type="password"
+                            value={resetPass}
+                            autoComplete="new-password"
+                            placeholder="New password"
+                            className="h-9 w-40"
+                            onChange={(e) => setResetPass(e.target.value)}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              void staffSetPassword({ data: { id: user.id, password: resetPass } }).then((result) => {
+                                if (!result.ok) {
+                                  toast.error(result.error);
+                                  return;
+                                }
+                                setResetId("");
+                                setResetPass("");
+                                toast.success("Password saved. They should sign in and change it.");
+                              });
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => { setResetId(user.id); setResetPass(""); }}>
+                          Set password
+                        </Button>
+                      )}
+                      <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
@@ -105,6 +140,7 @@ function UsersPage() {
                     >
                       Remove
                     </Button>
+                    </div>
                   ) : (
                     <span className="text-xs text-muted-foreground">Signed in</span>
                   )}

@@ -14,6 +14,7 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as BinRouteImport } from './routes/bin'
 import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as InvoicesRouteImport } from './routes/invoices'
+import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PartiesRouteImport } from './routes/parties'
 import { Route as PaymentsRouteImport } from './routes/payments'
@@ -75,6 +76,11 @@ const CreditsRoute = CreditsRouteImport.update({
 const InvoicesRoute = InvoicesRouteImport.update({
   id: '/invoices',
   path: '/invoices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LedgerRoute = LedgerRouteImport.update({
+  id: '/ledger',
+  path: '/ledger',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -269,6 +275,7 @@ export interface FileRoutesByFullPath {
   '/bin': typeof BinRoute
   '/credits': typeof CreditsRouteWithChildren
   '/invoices': typeof InvoicesRouteWithChildren
+  '/ledger': typeof LedgerRoute
   '/login': typeof LoginRoute
   '/parties': typeof PartiesRoute
   '/payments': typeof PaymentsRouteWithChildren
@@ -311,6 +318,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
   '/bin': typeof BinRoute
+  '/ledger': typeof LedgerRoute
   '/login': typeof LoginRoute
   '/parties': typeof PartiesRoute
   '/products': typeof ProductsRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/bin': typeof BinRoute
   '/credits': typeof CreditsRouteWithChildren
   '/invoices': typeof InvoicesRouteWithChildren
+  '/ledger': typeof LedgerRoute
   '/login': typeof LoginRoute
   '/parties': typeof PartiesRoute
   '/payments': typeof PaymentsRouteWithChildren
@@ -398,6 +407,7 @@ export interface FileRouteTypes {
     | '/bin'
     | '/credits'
     | '/invoices'
+    | '/ledger'
     | '/login'
     | '/parties'
     | '/payments'
@@ -440,6 +450,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accounts'
     | '/bin'
+    | '/ledger'
     | '/login'
     | '/parties'
     | '/products'
@@ -480,6 +491,7 @@ export interface FileRouteTypes {
     | '/bin'
     | '/credits'
     | '/invoices'
+    | '/ledger'
     | '/login'
     | '/parties'
     | '/payments'
@@ -525,6 +537,7 @@ export interface RootRouteChildren {
   BinRoute: typeof BinRoute
   CreditsRoute: typeof CreditsRouteWithChildren
   InvoicesRoute: typeof InvoicesRouteWithChildren
+  LedgerRoute: typeof LedgerRoute
   LoginRoute: typeof LoginRoute
   PartiesRoute: typeof PartiesRoute
   PaymentsRoute: typeof PaymentsRouteWithChildren
@@ -573,6 +586,13 @@ declare module '@tanstack/react-router' {
       path: '/invoices'
       fullPath: '/invoices'
       preLoaderRoute: typeof InvoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ledger': {
+      id: '/ledger'
+      path: '/ledger'
+      fullPath: '/ledger'
+      preLoaderRoute: typeof LedgerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1011,6 +1031,7 @@ const rootRouteChildren: RootRouteChildren = {
   BinRoute: BinRoute,
   CreditsRoute: CreditsRouteWithChildren,
   InvoicesRoute: InvoicesRouteWithChildren,
+  LedgerRoute: LedgerRoute,
   LoginRoute: LoginRoute,
   PartiesRoute: PartiesRoute,
   PaymentsRoute: PaymentsRouteWithChildren,

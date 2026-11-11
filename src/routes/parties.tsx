@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil, Plus, Search } from "lucide-react";
 import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { useMemo, useState } from "react";
@@ -74,6 +74,11 @@ function PartiesPage() {
             <p className="mt-3 font-mono text-xs">{p.gstin || "No GSTIN"}</p>
             <p className="mt-1 text-xs text-muted-foreground">{p.addressLine1}</p>
             <div className="mt-3 flex justify-end gap-1">
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/ledger" search={{ party: p.id, side: p.isSupplier && !p.isCustomer ? "supplier" : "customer" }}>
+                  Ledger
+                </Link>
+              </Button>
               <PartyFormDialog
                 party={p}
                 trigger={

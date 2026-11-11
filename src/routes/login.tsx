@@ -9,7 +9,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { ensureAdmin } from "@/lib/ensure-admin";
 import { loginEmail } from "@/lib/login-id";
 import { isDesktopApp } from "@/lib/desktop";
-import { staffSignIn } from "@/lib/staff-accounts";
+import { staffRecover, staffSignIn } from "@/lib/staff-accounts";
 import { useStaffSession } from "@/lib/staff-session";
 import { toast } from "sonner";
 import { DeveloperNote } from "@/components/developer-note";
@@ -54,6 +54,9 @@ function LoginForm() {
   const [user, setUser] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -79,6 +82,24 @@ function LoginForm() {
       toast.success("Signed in");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not sign in");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recover(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const result = await staffRecover({ data: { username: user, recoveryCode, password: nextPassword } });
+      if (!result.ok) throw new Error(result.error);
+      toast.success("Password saved. Sign in with the new password.");
+      setForgot(false);
+      setPassword("");
+      setNextPassword("");
+      setRecoveryCode("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not reset the password");
     } finally {
       setBusy(false);
     }
@@ -125,7 +146,28 @@ function LoginForm() {
           <Button type="submit" className="h-11 w-full" disabled={busy}>
             {busy ? "Please wait…" : "Sign in"}
           </Button>
+          {!isDesktopApp ? (
+            <button type="button" className="w-full text-center text-sm text-primary underline-offset-2 hover:underline" onClick={() => setForgot((open) => !open)}>
+              {forgot ? "Back to sign in" : "Forgot password?"}
+            </button>
+          ) : null}
         </form>
+        {!isDesktopApp && forgot ? (
+          <form onSubmit={recover} className="mt-4 space-y-4 rounded-2xl border border-border bg-card p-6">
+            <p className="text-sm text-muted-foreground">Enter the recovery code, the user name, and a new password of at least 8 characters.</p>
+            <div className="space-y-1.5">
+              <Label htmlFor="recover-code">Recovery code</Label>
+              <Input id="recover-code" type="password" autoComplete="off" value={recoveryCode} onChange={(e) => setRecoveryCode(e.target.value)} className="h-11" required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="recover-pass">New password</Label>
+              <Input id="recover-pass" type="password" autoComplete="new-password" value={nextPassword} onChange={(e) => setNextPassword(e.target.value)} className="h-11" required />
+            </div>
+            <Button type="submit" className="h-11 w-full" disabled={busy}>
+              {busy ? "Please wait…" : "Save new password"}
+            </Button>
+          </form>
+        ) : null}
         <DeveloperNote className="mt-6" />
       </div>
     </main>

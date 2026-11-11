@@ -27,13 +27,14 @@ import { inferYearId, yearRange } from "@/lib/financial-year";
 import { currentMonthRange, currentQuarterRange, lastMonthRange, round2, stateName } from "@/lib/gst";
 import { orientLabel, printPage, type PageOrient } from "@/lib/print-page";
 import { OpeningDues } from "@/components/opening-dues";
+import { PartyLedgerPanel } from "@/components/party-ledger-panel";
 import { inRange, stockRegister } from "@/lib/registers";
 import { useBillingStore } from "@/lib/store";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/accounts")({ component: AccountsPage });
 
-type TabKey = "pnl" | "profit" | "bs" | "debtors" | "creditors" | "gst" | "stock";
+type TabKey = "pnl" | "profit" | "bs" | "debtors" | "creditors" | "ledger" | "gst" | "stock";
 
 const ORIENT: Record<TabKey, PageOrient> = {
   pnl: "portrait",
@@ -41,6 +42,7 @@ const ORIENT: Record<TabKey, PageOrient> = {
   bs: "portrait",
   debtors: "landscape",
   creditors: "landscape",
+  ledger: "portrait",
   gst: "portrait",
   stock: "landscape",
 };
@@ -184,7 +186,7 @@ function AccountsPage() {
           ],
         },
       ]);
-    } else {
+    } else if (tab === "stock") {
       downloadExcel(`Stock-valuation-${stamp}`, [
         {
           name: "Stock",
@@ -195,6 +197,8 @@ function AccountsPage() {
           ],
         },
       ]);
+    } else {
+      return;
     }
     toast.success("Excel downloaded");
   }
@@ -283,6 +287,7 @@ function AccountsPage() {
           <TabsTrigger value="bs">Balance sheet</TabsTrigger>
           <TabsTrigger value="debtors">Debtors</TabsTrigger>
           <TabsTrigger value="creditors">Creditors</TabsTrigger>
+          <TabsTrigger value="ledger">Ledger</TabsTrigger>
           <TabsTrigger value="gst">GST payable</TabsTrigger>
           <TabsTrigger value="stock">Stock value</TabsTrigger>
         </TabsList>
@@ -369,6 +374,10 @@ function AccountsPage() {
             <OutstandingTable rows={creditors} empty="No outstanding suppliers." />
             <AgeBar totals={creditorAge} />
           </StatementFrame>
+        </TabsContent>
+
+        <TabsContent value="ledger">
+          <PartyLedgerPanel />
         </TabsContent>
 
         <TabsContent value="gst">

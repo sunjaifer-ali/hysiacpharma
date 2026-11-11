@@ -20,7 +20,7 @@ export type WebSession = {
   role: WebRole;
 };
 
-const BILLING_PREFIXES = ["/", "/invoices", "/quotes", "/returns", "/credits", "/products", "/parties"];
+const BILLING_PREFIXES = ["/", "/invoices", "/quotes", "/returns", "/credits", "/products", "/parties", "/ledger"];
 
 export function canOpen(role: WebRole, pathname: string): boolean {
   if (role === "admin") return true;
