@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { inferYearId, nextYearId, yearLabel } from "@/lib/financial-year";
+import { inferYearId, nextYearId, nextYearReady, yearLabel } from "@/lib/financial-year";
 import { booksUseYear, booksYears } from "@/lib/staff-accounts";
 import { useBillingStore } from "@/lib/store";
 import { parseBooksBackup } from "@/lib/backup";
@@ -91,7 +91,7 @@ export function YearSwitch({ canChange }: { canChange: boolean }) {
           ))}
         </select>
       ) : null}
-      {canChange && !years.includes(upcoming) ? (
+      {canChange && nextYearReady(year) && !years.includes(upcoming) ? (
         <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void openYear(upcoming, true)}>
           {busy ? "Please wait…" : `Start ${yearLabel(upcoming)}`}
         </Button>

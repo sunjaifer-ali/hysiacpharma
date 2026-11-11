@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, ClipboardList, IndianRupee, Receipt, Wallet } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell } from "@/components/app-shell";
 import { HysiacMark } from "@/components/logo";
 import { LowStockBanner } from "@/components/low-stock-banner";
@@ -11,6 +11,8 @@ import { formatDate, formatINR, formatINRCompact, monthKey, monthLabel } from "@
 import { invoiceTotals } from "@/lib/gst";
 import { inferYearId, yearLabel, yearRange } from "@/lib/financial-year";
 import { invoiceNetDue } from "@/lib/returns";
+import { isDesktopApp } from "@/lib/desktop";
+import { useStaffSession } from "@/lib/staff-session";
 import { useBillingStore, useHasHydrated } from "@/lib/store";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -22,6 +24,8 @@ function Home() {
   const creditNotes = useBillingStore((s) => s.creditNotes);
   const openingDues = useBillingStore((s) => s.openingDues);
   const company = useBillingStore((s) => s.company);
+  const staff = useStaffSession();
+  const canPurchase = isDesktopApp || staff.session?.role !== "billing";
   const fy = yearRange(inferYearId(company));
 
   const live = invoices.filter((i) => i.status !== "cancelled" && i.status !== "draft");
@@ -70,11 +74,14 @@ function Home() {
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
   const chart = months.map((m) => {
-    const subset = live.filter((i) => monthKey(i.date) === m);
-    return {
-      month: monthLabel(m),
-      sales: Math.round(subset.reduce((s, i) => s + invoiceTotals(i).grand, 0)),
-    };
+    const sale = live.filter((i) => monthKey(i.date) === m).reduce((s, i) => s + invoiceTotals(i).grand, 0);
+    const notes = creditNotes
+      .filter((n) => n.status === "issued" && monthKey(n.date) === m)
+      .reduce((s, n) => s + invoiceTotals(n).grand, 0);
+    const bought = purchases
+      .filter((p) => p.status === "posted" && monthKey(p.date) === m)
+      .reduce((s, p) => s + invoiceTotals(p).grand, 0);
+    return { month: monthLabel(m), sales: Math.round(sale - notes), purchases: Math.round(bought) };
   });
 
   const recent = [...invoices].sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number)).slice(0, 6);
@@ -95,15 +102,17 @@ function Home() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link to="/quotes/new">New quotation</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/purchases/new">New purchase</Link>
-          </Button>
+        <div className="flex flex-wrap gap-2 md:hidden">
+          {canPurchase ? (
+            <Button asChild variant="outline">
+              <Link to="/purchases/new">New purchase</Link>
+            </Button>
+          ) : null}
           <Button asChild>
             <Link to="/invoices/new">New tax invoice</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/quotes/new">New quotation</Link>
           </Button>
         </div>
       </div>
@@ -125,18 +134,12 @@ function Home() {
       <div className="mt-6 grid gap-4 lg:grid-cols-5">
         <Card className="min-w-0 overflow-hidden lg:col-span-3">
           <CardHeader>
-            <CardTitle>Sales</CardTitle>
-            <p className="text-sm text-muted-foreground">Last six months of billed value</p>
+            <CardTitle>Sales and purchases</CardTitle>
+            <p className="text-sm text-muted-foreground">Last six months</p>
           </CardHeader>
-          <CardContent className="h-56">
+          <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.28} />
-                    <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
+              <BarChart data={chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--color-border)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis
@@ -147,7 +150,7 @@ function Home() {
                   width={48}
                 />
                 <Tooltip
-                  formatter={(v: number) => [formatINR(v), "Sales"]}
+                  formatter={(v: number, name: string) => [formatINR(Number(v)), name === "purchases" ? "Purchases" : "Sales"]}
                   contentStyle={{
                     background: "var(--color-card)",
                     border: "1px solid var(--color-border)",
@@ -155,8 +158,10 @@ function Home() {
                     fontSize: 12,
                   }}
                 />
-                <Area type="monotone" dataKey="sales" stroke="var(--color-primary)" strokeWidth={2} fill="url(#salesFill)" />
-              </AreaChart>
+                <Legend formatter={(value) => (value === "purchases" ? "Purchases" : "Sales")} />
+                <Bar dataKey="sales" fill="var(--color-primary)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="purchases" fill="var(--color-warning)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

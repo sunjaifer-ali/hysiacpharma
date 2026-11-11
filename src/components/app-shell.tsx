@@ -18,7 +18,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { canOpen, type WebRole } from "@/lib/web-users";
@@ -99,6 +99,42 @@ function NavLinks({ onNavigate, role }: { onNavigate?: () => void; role: WebRole
   );
 }
 
+const IDLE_MS = 30 * 60 * 1000;
+
+function useIdleSignOut(enabled: boolean) {
+  const last = useRef(Date.now());
+  useEffect(() => {
+    if (!enabled) return;
+    last.current = Date.now();
+    let left = false;
+    const mark = () => {
+      last.current = Date.now();
+    };
+    const leave = () => {
+      if (left) return;
+      left = true;
+      void staffSignOut().finally(() => {
+        window.location.assign("/login");
+      });
+    };
+    const tick = () => {
+      if (Date.now() - last.current >= IDLE_MS) leave();
+    };
+    const events = ["pointerdown", "keydown", "touchstart", "input"] as const;
+    for (const event of events) window.addEventListener(event, mark, { passive: true });
+    window.addEventListener("scroll", mark, { passive: true, capture: true });
+    document.addEventListener("visibilitychange", tick);
+    const timer = window.setInterval(tick, 15_000);
+    return () => {
+      left = true;
+      for (const event of events) window.removeEventListener(event, mark);
+      window.removeEventListener("scroll", mark, { capture: true });
+      document.removeEventListener("visibilitychange", tick);
+      window.clearInterval(timer);
+    };
+  }, [enabled]);
+}
+
 export function AppShell({ children, wide }: { children: ReactNode; wide?: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user, isPending } = useCurrentUserState();
@@ -106,6 +142,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
   const webSession = staff.session;
   const role: WebRole | "desktop" = isDesktopApp ? "desktop" : (webSession?.role ?? "billing");
   const [ready, setReady] = useState(isDesktopApp);
+  useIdleSignOut(!isDesktopApp && Boolean(webSession));
 
   useEffect(() => {
     if (isDesktopApp || staff.ready) setReady(true);
@@ -196,12 +233,15 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
           </Link>
           <YearSwitch canChange={role === "admin" || role === "desktop"} />
         </div>
-        <Button asChild size="sm">
-          <Link to="/invoices/new">
-            <Plus className="size-4" />
-            New
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm">
+            <Link to="/invoices/new">
+              <Plus className="size-4" />
+              New
+            </Link>
+          </Button>
+          <SignOutButton />
+        </div>
       </header>
 
       <div className="app-shell-main overflow-x-clip md:pl-60">
@@ -219,6 +259,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
               <Link to="/purchases/new">New purchase</Link>
             </Button>
           ) : null}
+          <SignOutButton />
           </div>
         </div>
         <div className={cn("app-shell-pad mx-auto w-full px-4 pb-24 pt-6 sm:px-6 md:pb-10 md:pt-8", wide ? "max-w-[1400px]" : "max-w-6xl")}>{children}</div>
@@ -273,6 +314,22 @@ function MustChangePassword({ id }: { id: string }) {
         </Button>
       </form>
     </main>
+  );
+}
+
+function SignOutButton() {
+  if (isDesktopApp) return null;
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      onClick={() => {
+        void staffSignOut().finally(() => window.location.assign("/login"));
+      }}
+    >
+      Sign out
+    </Button>
   );
 }
 

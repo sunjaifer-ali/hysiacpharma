@@ -33,6 +33,13 @@ export function nextYearId(id: string): string {
   return `${start}-${String(start + 1).slice(-2)}`;
 }
 
+/** The next year can be started only after 31 March of the open year. */
+export function nextYearReady(id: string, today = new Date()): boolean {
+  const endYear = Number(id.slice(0, 4)) + 1;
+  const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return day > `${endYear}-03-31`;
+}
+
 export function yearShort(id: string): string {
   const [start, end] = id.split("-");
   return `${start.slice(-2)}${end}`;

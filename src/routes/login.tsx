@@ -113,6 +113,34 @@ function LoginForm() {
           <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Hysiac Management App</p>
         </div>
 
+        {forgot ? (
+          <form onSubmit={recover} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)] sm:p-8">
+            <div className="text-center">
+              <h1 className="font-display text-3xl">New password</h1>
+              <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
+                Fill all three boxes, then save. After that, sign in with the user name and the new password.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="recover-user">User name</Label>
+              <Input id="recover-user" autoComplete="username" value={user} onChange={(e) => setUser(e.target.value)} className="h-11" required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="recover-code">Recovery code</Label>
+              <Input id="recover-code" autoComplete="off" value={recoveryCode} onChange={(e) => setRecoveryCode(e.target.value)} className="h-11" required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="recover-pass">New password</Label>
+              <Input id="recover-pass" type="password" autoComplete="new-password" value={nextPassword} onChange={(e) => setNextPassword(e.target.value)} className="h-11" required />
+            </div>
+            <Button type="submit" className="h-11 w-full" disabled={busy}>
+              {busy ? "Please wait…" : "Save new password"}
+            </Button>
+            <button type="button" className="w-full text-center text-sm text-primary underline-offset-2 hover:underline" onClick={() => setForgot(false)}>
+              Back to sign in
+            </button>
+          </form>
+        ) : (
         <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)] sm:p-8">
           <div className="text-center">
             <h1 className="font-display text-3xl">Sign in</h1>
@@ -147,27 +175,12 @@ function LoginForm() {
             {busy ? "Please wait…" : "Sign in"}
           </Button>
           {!isDesktopApp ? (
-            <button type="button" className="w-full text-center text-sm text-primary underline-offset-2 hover:underline" onClick={() => setForgot((open) => !open)}>
-              {forgot ? "Back to sign in" : "Forgot password?"}
+            <button type="button" className="w-full text-center text-sm text-primary underline-offset-2 hover:underline" onClick={() => setForgot(true)}>
+              Forgot password?
             </button>
           ) : null}
         </form>
-        {!isDesktopApp && forgot ? (
-          <form onSubmit={recover} className="mt-4 space-y-4 rounded-2xl border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">Enter the recovery code, the user name, and a new password of at least 8 characters.</p>
-            <div className="space-y-1.5">
-              <Label htmlFor="recover-code">Recovery code</Label>
-              <Input id="recover-code" type="password" autoComplete="off" value={recoveryCode} onChange={(e) => setRecoveryCode(e.target.value)} className="h-11" required />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="recover-pass">New password</Label>
-              <Input id="recover-pass" type="password" autoComplete="new-password" value={nextPassword} onChange={(e) => setNextPassword(e.target.value)} className="h-11" required />
-            </div>
-            <Button type="submit" className="h-11 w-full" disabled={busy}>
-              {busy ? "Please wait…" : "Save new password"}
-            </Button>
-          </form>
-        ) : null}
+        )}
         <DeveloperNote className="mt-6" />
       </div>
     </main>
