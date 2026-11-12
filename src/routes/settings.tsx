@@ -48,9 +48,13 @@ function SettingsPage() {
         if (result.latest) next.push({ id: "latest", label: `Latest · ${formatBackupWhen(result.latest.savedAt)}` });
         for (const day of result.days) {
           if (day.day === latestDay) continue;
+          const datePart = day.day.replace("#earlier", "");
+          const when = formatBackupWhen(day.savedAt);
           next.push({
             id: day.day,
-            label: day.day.endsWith("#earlier") ? `Earlier today · ${formatBackupWhen(day.savedAt)}` : formatBackupWhen(day.savedAt),
+            label: day.day.endsWith("#earlier")
+              ? `Earlier on ${prettyDay(datePart)}${when ? ` · ${when}` : ""}`
+              : `${prettyDay(datePart)}${when ? ` · ${when}` : ""}`,
           });
         }
         setBackupChoices(next);
@@ -343,6 +347,7 @@ function SettingsPage() {
                     payments: s.payments,
                     adjustments: s.adjustments,
                     openingDues: s.openingDues,
+                    expenses: s.expenses,
                     bin: s.bin,
                   }),
                   BACKUP_LATEST_NAME,
@@ -404,9 +409,17 @@ function SettingsPage() {
   );
 }
 
+function prettyDay(day: string): string {
+  const [year, month, date] = day.split("-");
+  if (!year || !month || !date) return day;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(date));
+  if (Number.isNaN(parsed.getTime())) return day;
+  return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(parsed);
+}
+
 function formatBackupWhen(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  const date = parseDbTime(value);
+  if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
     day: "numeric",
@@ -417,8 +430,18 @@ function formatBackupWhen(value: string): string {
   }).format(date);
 }
 
+function parseDbTime(value: string): Date {
+  const trimmed = value.trim();
+  if (!trimmed) return new Date(Number.NaN);
+  if (trimmed.includes("T")) return new Date(trimmed);
+  let next = trimmed.replace(" ", "T");
+  if (/[+-]\d{2}$/.test(next)) next += ":00";
+  else if (/[+-]\d{4}$/.test(next)) next = next.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+  return new Date(next);
+}
+
 function istDay(value: string): string {
-  const date = new Date(value);
+  const date = parseDbTime(value);
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",

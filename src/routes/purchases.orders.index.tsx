@@ -5,7 +5,7 @@ import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { LowStockBanner } from "@/components/low-stock-banner";
 import { PeriodFilter, useVoucherPeriod } from "@/components/period-filter";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatINR } from "@/lib/format";
 import { useBillingStore } from "@/lib/store";
 import { toast } from "sonner";
 
@@ -68,6 +68,7 @@ function PurchaseOrdersPage() {
                 <th className="px-4 py-3 font-medium">Date</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium text-right">Items</th>
+                <th className="px-4 py-3 font-medium text-right">Advance</th>
                 <th className="px-2 py-3 font-medium">
                   <span className="sr-only">Delete</span>
                 </th>
@@ -76,7 +77,7 @@ function PurchaseOrdersPage() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground">
                     {orders.length === 0 ? "No purchase orders yet." : "No purchase orders in this period."}
                   </td>
                 </tr>
@@ -92,6 +93,7 @@ function PurchaseOrdersPage() {
                     <td className="px-4 py-3">{formatDate(order.date)}</td>
                     <td className="px-4 py-3">{LABEL[order.status] ?? order.status}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{order.lines.length}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{(order.advancePaid || 0) > 0 ? formatINR(order.advancePaid || 0) : "—"}</td>
                     <td className="px-2 py-3">
                       <DeleteVoucherButton
                         compact

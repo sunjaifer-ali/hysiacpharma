@@ -1,9 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Printer } from "lucide-react";
+import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { PurchaseOrderSheet } from "@/components/purchase-order-sheet";
+import { SettleDialog } from "@/components/settle-dialog";
 import { Button } from "@/components/ui/button";
+import { formatDateDMY, formatINR } from "@/lib/format";
 import { printPage } from "@/lib/print-page";
 import { useBillingStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -24,6 +27,9 @@ function PurchaseOrderPage() {
   const saveOrder = useBillingStore((s) => s.savePurchaseOrder);
   const setStatus = useBillingStore((s) => s.setPurchaseOrderStatus);
   const deleteOrder = useBillingStore((s) => s.deletePurchaseOrder);
+  const recordAdvance = useBillingStore((s) => s.recordOrderAdvance);
+  const advances = useBillingStore((s) => s.payments.filter((payment) => payment.kind === "payment" && payment.voucherId === id));
+  const [payOpen, setPayOpen] = useState(false);
 
   if (!order) {
     return (
@@ -47,6 +53,7 @@ function PurchaseOrderPage() {
           <h1 className="font-display text-3xl">{order.number}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {order.supplier.name} · {LABEL[order.status] ?? order.status}
+            {(order.advancePaid || 0) > 0 ? ` · Advance ${formatINR(order.advancePaid || 0)}` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -59,6 +66,11 @@ function PurchaseOrderPage() {
               <Link to="/purchases/orders/$id/edit" params={{ id: order.id }}>
                 Edit
               </Link>
+            </Button>
+          ) : null}
+          {order.status !== "cancelled" ? (
+            <Button variant="outline" onClick={() => setPayOpen(true)}>
+              Pay advance
             </Button>
           ) : null}
           {order.status === "draft" ? (
@@ -127,6 +139,37 @@ function PurchaseOrderPage() {
         </div>
       </div>
       <PurchaseOrderSheet order={order} />
+      {advances.length > 0 ? (
+        <section className="no-print mt-4 rounded-2xl border border-border p-4">
+          <h2 className="font-medium">Advance paid</h2>
+          <ul className="mt-2 divide-y divide-border text-sm">
+            {advances.map((payment) => (
+              <li key={payment.id} className="flex justify-between gap-3 py-2">
+                <span>
+                  {payment.number || "Payment"} · {formatDateDMY(payment.date)} · {payment.mode}
+                  {payment.reference ? ` · ${payment.reference}` : ""}
+                </span>
+                <span className="tabular-nums">{formatINR(payment.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      <SettleDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        title={`Advance for ${order.number}`}
+        due={0}
+        note="This is money paid to the supplier before the goods arrive. It is saved as a payment voucher and shown on the supplier ledger."
+        onSave={(input) => {
+          const saved = recordAdvance(order.id, input.amount, input);
+          if (!saved) {
+            toast.error("Could not save the advance");
+            return;
+          }
+          toast.success(`Advance ${formatINR(input.amount)} saved`);
+        }}
+      />
     </AppShell>
   );
 }

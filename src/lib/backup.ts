@@ -16,6 +16,7 @@ export type BooksSnapshot = {
   payments: LedgerPayment[];
   adjustments?: StockAdjustment[];
   openingDues?: OpeningDue[];
+  expenses?: import("./types").Expense[];
   bin?: RecycleEntry[];
 };
 
@@ -79,6 +80,7 @@ export function booksFingerprint(books: BooksSnapshot): string {
       payments: books.payments,
       adjustments: books.adjustments ?? [],
       openingDues: books.openingDues ?? [],
+      expenses: books.expenses ?? [],
       bin: books.bin ?? [],
     }),
   );
@@ -102,6 +104,7 @@ export function parseBooksBackup(raw: unknown): BooksSnapshot {
     payments: Array.isArray(data.payments) ? (data.payments as LedgerPayment[]) : [],
     adjustments: Array.isArray(data.adjustments) ? (data.adjustments as StockAdjustment[]) : [],
     openingDues: Array.isArray(data.openingDues) ? (data.openingDues as OpeningDue[]) : [],
+    expenses: Array.isArray(data.expenses) ? (data.expenses as import("./types").Expense[]) : [],
     bin: Array.isArray(data.bin) ? (data.bin as RecycleEntry[]) : [],
   };
 }

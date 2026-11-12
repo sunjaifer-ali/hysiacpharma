@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArchiveRestore,
+  Banknote,
   BookOpen,
   ClipboardList,
   FileText,
@@ -49,6 +50,7 @@ const NAV = [
   { to: "/parties", label: "Parties", icon: Users, group: "Stock" },
   { to: "/reports", label: "Reports", icon: BookOpen, group: "Office" },
   { to: "/accounts", label: "Accounts", icon: Landmark, group: "Office" },
+  { to: "/bank", label: "Bank", icon: Banknote, group: "Office" },
   { to: "/settings", label: "Settings", icon: Settings, group: "Office" },
   { to: "/users", label: "Users", icon: UserRoundPlus, group: "Office" },
   { to: "/bin", label: "Recycle bin", icon: ArchiveRestore, group: "Office" },

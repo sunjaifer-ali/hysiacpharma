@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsRouteImport } from './routes/accounts'
+import { Route as BankRouteImport } from './routes/bank'
 import { Route as BinRouteImport } from './routes/bin'
 import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as InvoicesRouteImport } from './routes/invoices'
@@ -61,6 +62,11 @@ const IndexRoute = IndexRouteImport.update({
 const AccountsRoute = AccountsRouteImport.update({
   id: '/accounts',
   path: '/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BankRoute = BankRouteImport.update({
+  id: '/bank',
+  path: '/bank',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BinRoute = BinRouteImport.update({
@@ -272,6 +278,7 @@ const PurchasesOrdersIdEditRoute = PurchasesOrdersIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/bank': typeof BankRoute
   '/bin': typeof BinRoute
   '/credits': typeof CreditsRouteWithChildren
   '/invoices': typeof InvoicesRouteWithChildren
@@ -317,6 +324,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/bank': typeof BankRoute
   '/bin': typeof BinRoute
   '/ledger': typeof LedgerRoute
   '/login': typeof LoginRoute
@@ -357,6 +365,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/bank': typeof BankRoute
   '/bin': typeof BinRoute
   '/credits': typeof CreditsRouteWithChildren
   '/invoices': typeof InvoicesRouteWithChildren
@@ -404,6 +413,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accounts'
+    | '/bank'
     | '/bin'
     | '/credits'
     | '/invoices'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accounts'
+    | '/bank'
     | '/bin'
     | '/ledger'
     | '/login'
@@ -488,6 +499,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/accounts'
+    | '/bank'
     | '/bin'
     | '/credits'
     | '/invoices'
@@ -534,6 +546,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRoute
+  BankRoute: typeof BankRoute
   BinRoute: typeof BinRoute
   CreditsRoute: typeof CreditsRouteWithChildren
   InvoicesRoute: typeof InvoicesRouteWithChildren
@@ -565,6 +578,13 @@ declare module '@tanstack/react-router' {
       path: '/accounts'
       fullPath: '/accounts'
       preLoaderRoute: typeof AccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bank': {
+      id: '/bank'
+      path: '/bank'
+      fullPath: '/bank'
+      preLoaderRoute: typeof BankRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bin': {
@@ -1028,6 +1048,7 @@ const ReturnsRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRoute,
+  BankRoute: BankRoute,
   BinRoute: BinRoute,
   CreditsRoute: CreditsRouteWithChildren,
   InvoicesRoute: InvoicesRouteWithChildren,

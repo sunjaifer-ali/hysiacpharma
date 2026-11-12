@@ -12,12 +12,14 @@ export function SettleDialog({
   onOpenChange,
   title,
   due,
+  note,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   due: number;
+  note?: string;
   onSave: (input: { amount: number; date: string; mode: PaymentMode; reference: string }) => void;
 }) {
   const [amount, setAmount] = useState(String(due));
@@ -42,7 +44,9 @@ export function SettleDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
-          <p className="text-sm text-muted-foreground">Due now {formatINR(due)}. Enter only this receipt or payment, not the bill total.</p>
+          <p className="text-sm text-muted-foreground">
+            {note ?? `Due now ${formatINR(due)}. Enter only this receipt or payment, not the bill total.`}
+          </p>
           <div className="space-y-1.5">
             <Label>Amount</Label>
             <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />

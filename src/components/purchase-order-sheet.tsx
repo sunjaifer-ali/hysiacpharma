@@ -1,4 +1,4 @@
-import { formatDateDMY } from "@/lib/format";
+import { formatDateDMY, formatINR } from "@/lib/format";
 import { stateName } from "@/lib/gst";
 import type { PurchaseOrder } from "@/lib/types";
 
@@ -48,6 +48,12 @@ export function PurchaseOrderSheet({ order }: { order: PurchaseOrder }) {
             <p>
               <span className="text-muted-foreground">Required by </span>
               {formatDateDMY(order.neededBy)}
+            </p>
+          ) : null}
+          {(order.advancePaid || 0) > 0 ? (
+            <p>
+              <span className="text-muted-foreground">Advance paid </span>
+              <span className="font-medium">{formatINR(order.advancePaid || 0)}</span>
             </p>
           ) : null}
         </div>

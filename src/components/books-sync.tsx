@@ -18,6 +18,7 @@ function snapshot(): BooksSnapshot {
     payments: s.payments,
     adjustments: s.adjustments,
     openingDues: s.openingDues,
+    expenses: s.expenses,
     bin: s.bin,
   };
 }
@@ -32,6 +33,7 @@ function entryMark(books: BooksSnapshot): string {
     books.payments,
     books.adjustments ?? [],
     books.openingDues ?? [],
+    books.expenses ?? [],
   ]);
 }
 
@@ -44,7 +46,7 @@ function hasWork(books: BooksSnapshot): boolean {
     count(books.invoices) + count(books.products) + count(books.parties) +
     count(books.purchases) + count(books.purchaseOrders) + count(books.quotes) +
     count(books.creditNotes) + count(books.payments) + count(books.adjustments) +
-    count(books.openingDues) + count(books.bin) > 0
+    count(books.openingDues) + count(books.expenses) + count(books.bin) > 0
   );
 }
 

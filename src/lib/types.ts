@@ -67,6 +67,9 @@ export type CompanyProfile = {
   nextReceiptNumber?: number;
   paymentVoucherPrefix?: string;
   nextPaymentVoucherNumber?: number;
+  /** Bank balance already in the account on bankOpeningDate. */
+  bankOpening?: number;
+  bankOpeningDate?: string;
   salesman: string;
   terms: string;
   signatory: string;
@@ -363,6 +366,18 @@ export type LedgerPayment = {
   createdAt: string;
 };
 
+export type ExpenseCategory = "salary" | "ca" | "rent" | "electricity" | "phone" | "transport" | "other";
+
+export type Expense = {
+  id: string;
+  date: string;
+  category: ExpenseCategory;
+  amount: number;
+  mode: PaymentMode;
+  note: string;
+  createdAt: string;
+};
+
 export type RecycleEntry =
   | {
       id: string;
@@ -390,6 +405,7 @@ export type RecycleEntry =
       title: string;
       subtitle: string;
       order: PurchaseOrder;
+      payments: LedgerPayment[];
     }
   | {
       id: string;
@@ -433,6 +449,14 @@ export type RecycleEntry =
     }
   | {
       id: string;
+      kind: "expense";
+      deletedAt: string;
+      title: string;
+      subtitle: string;
+      expense: Expense;
+    }
+  | {
+      id: string;
       kind: "opening";
       deletedAt: string;
       title: string;
@@ -465,6 +489,7 @@ export type PurchaseOrder = {
   neededBy: string;
   notes: string;
   lines: PurchaseOrderLine[];
+  advancePaid?: number;
   statusBeforeCancel?: PurchaseOrderStatus;
   createdAt: string;
   updatedAt: string;

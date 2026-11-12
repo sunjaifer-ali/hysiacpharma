@@ -344,7 +344,7 @@ export const booksLoad = createServerFn({ method: "GET" }).handler(async () => {
   return { ok: true as const, books, updatedAt: row.updated_at };
 });
 
-const MERGE_KEYS = ["invoices", "purchases", "purchaseOrders", "quotes", "creditNotes", "payments", "products", "parties", "adjustments", "openingDues", "bin"];
+const MERGE_KEYS = ["invoices", "purchases", "purchaseOrders", "quotes", "creditNotes", "payments", "products", "parties", "adjustments", "openingDues", "expenses", "bin"];
 const NEXT_KEYS = ["nextNumber", "nextPurchaseNumber", "nextPurchaseOrderNumber", "nextReturnNumber", "nextCreditNoteNumber", "nextQuoteNumber", "nextReceiptNumber", "nextPaymentVoucherNumber"];
 
 function mergeBooks(stored: Record<string, unknown>, incoming: Record<string, unknown>, role: string): Record<string, unknown> {
@@ -441,7 +441,7 @@ export const booksSave = createServerFn({ method: "POST" })
       }
       const shrunk = (before: unknown, after: unknown) =>
         Array.isArray(before) && Array.isArray(after) && after.length < before.length;
-      const keys = ["invoices", "purchases", "products", "parties", "quotes", "creditNotes", "payments", "purchaseOrders", "openingDues", "adjustments"];
+      const keys = ["invoices", "purchases", "products", "parties", "quotes", "creditNotes", "payments", "purchaseOrders", "openingDues", "adjustments", "expenses"];
       if (keys.some((key) => shrunk(stored[key], payload[key]))) {
         return { ok: false, error: "Only a full-access user can delete records" };
       }
@@ -500,10 +500,13 @@ export const booksHistory = createServerFn({ method: "GET" }).handler(async () =
   if (me.mustChange) return { ok: false as const, error: "Change the password before opening the books" };
   const sql = await ready();
   const live = await sql<{ updated_at: string; updated_by: string }>`
-    select updated_at::text as updated_at, updated_by from shop_books where id = ${"shop"} limit 1
+    select to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at, updated_by from shop_books where id = ${"shop"} limit 1
   `;
   const days = await sql<{ day: string; saved_at: string; updated_by: string }>`
-    select day, saved_at::text as saved_at, updated_by from shop_backup order by day desc limit 3
+    select day, to_char(saved_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as saved_at, updated_by
+    from shop_backup
+    where split_part(day, '#', 1) >= to_char(((now() at time zone 'Asia/Kolkata') - interval '2 days'), 'YYYY-MM-DD')
+    order by saved_at desc
   `;
   return {
     ok: true as const,

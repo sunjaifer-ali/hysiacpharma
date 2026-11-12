@@ -16,6 +16,7 @@ import type {
   CreditNote,
   CreditNoteDraft,
   CreditNoteStatus,
+  Expense,
   Invoice,
   InvoiceDraft,
   InvoiceLine,
@@ -23,6 +24,7 @@ import type {
   LedgerPayment,
   OpeningDue,
   Party,
+  PaymentMode,
   Product,
   Purchase,
   PurchaseDraft,
@@ -49,6 +51,7 @@ type BillingState = {
   payments: LedgerPayment[];
   adjustments: StockAdjustment[];
   openingDues: OpeningDue[];
+  expenses: Expense[];
   bin: RecycleEntry[];
   updateCompany: (patch: Partial<CompanyProfile>) => void;
   upsertProduct: (product: Product) => void;
@@ -59,6 +62,7 @@ type BillingState = {
   setInvoiceStatus: (id: string, status: InvoiceStatus) => void;
   recordPayment: (id: string, amount: number, meta?: { date?: string; mode?: LedgerPayment["mode"]; reference?: string }) => LedgerPayment | undefined;
   recordPurchasePayment: (id: string, amount: number, meta?: { date?: string; mode?: LedgerPayment["mode"]; reference?: string }) => LedgerPayment | undefined;
+  recordOrderAdvance: (id: string, amount: number, meta?: { date?: string; mode?: LedgerPayment["mode"]; reference?: string }) => LedgerPayment | undefined;
   deletePayment: (id: string) => void;
   savePurchase: (draft: PurchaseDraft, as: "draft" | "posted") => Purchase;
   setPurchaseStatus: (id: string, status: PurchaseStatus) => void;
@@ -78,6 +82,8 @@ type BillingState = {
   saveOpeningDue: (input: { partyId: string; kind: OpeningDue["kind"]; date: string; amount: number }) => OpeningDue;
   settleOpeningDue: (id: string, amount: number, meta?: { date?: string; mode?: LedgerPayment["mode"]; reference?: string }) => LedgerPayment | undefined;
   deleteOpeningDue: (id: string) => void;
+  saveExpense: (input: { date: string; category: Expense["category"]; amount: number; mode: PaymentMode; note: string }) => Expense;
+  deleteExpense: (id: string) => void;
   restoreBin: (id: string) => void;
   purgeBin: (id: string) => void;
   emptyBin: () => void;
@@ -94,6 +100,7 @@ type BillingState = {
     payments?: LedgerPayment[];
     adjustments?: StockAdjustment[];
     openingDues?: OpeningDue[];
+    expenses?: Expense[];
     bin?: RecycleEntry[];
   }) => void;
 };
@@ -273,6 +280,7 @@ function normalizePurchaseOrder(order: PurchaseOrder): PurchaseOrder {
     neededBy: order.neededBy ?? "",
     notes: order.notes ?? "",
     status: order.status ?? "draft",
+    advancePaid: Number(order.advancePaid) || 0,
     supplier: { ...order.supplier, drugLicense: order.supplier?.drugLicense ?? "" },
     lines: (order.lines ?? []).map((line) => ({
       ...line,
@@ -320,6 +328,8 @@ function normalizeCompany(c: CompanyProfile): CompanyProfile {
     nextReceiptNumber: c.nextReceiptNumber ?? 1,
     paymentVoucherPrefix: c.paymentVoucherPrefix ?? "HY/PV/2627/",
     nextPaymentVoucherNumber: c.nextPaymentVoucherNumber ?? 1,
+    bankOpening: Number.isFinite(Number(c.bankOpening)) ? Number(c.bankOpening) : 15400,
+    bankOpeningDate: c.bankOpeningDate || "2026-11-12",
     financialYear: c.financialYear && /^\d{4}-\d{2}$/.test(c.financialYear) ? c.financialYear : inferYearId(c),
     salesman: c.salesman ?? "DIRECT",
     drugLicense20,
@@ -346,6 +356,7 @@ type Persisted = Partial<BillingState> & {
   payments?: LedgerPayment[];
   adjustments?: StockAdjustment[];
   openingDues?: OpeningDue[];
+  expenses?: Expense[];
   bin?: RecycleEntry[];
 };
 
@@ -361,6 +372,7 @@ export function normalizeBooks(data: Persisted): {
   payments: LedgerPayment[];
   adjustments: StockAdjustment[];
   openingDues: OpeningDue[];
+  expenses: Expense[];
   bin: RecycleEntry[];
 } {
   const invoices = (data.invoices ?? []).map(normalizeInvoice);
@@ -422,6 +434,7 @@ export function normalizeBooks(data: Persisted): {
     payments: numbered.payments,
     adjustments: Array.isArray(data.adjustments) ? data.adjustments : [],
     openingDues: Array.isArray(data.openingDues) ? data.openingDues : [],
+    expenses: Array.isArray(data.expenses) ? data.expenses : [],
     bin: Array.isArray(data.bin) ? data.bin : [],
   };
 }
@@ -480,6 +493,7 @@ export const useBillingStore = create<BillingState>()(
       payments: [],
       adjustments: [],
       openingDues: [],
+      expenses: [],
       bin: [],
       updateCompany: (patch) => set({ company: normalizeCompany({ ...get().company, ...patch }) }),
       upsertProduct: (product) => {
@@ -717,6 +731,11 @@ export const useBillingStore = create<BillingState>()(
           openingDues: state.openingDues.map((d) =>
             d.id === entry.voucherId ? { ...d, paidAmount: round2(Math.max(0, (d.paidAmount || 0) - entry.amount)) } : d,
           ),
+          purchaseOrders: state.purchaseOrders.map((order) =>
+            order.id === entry.voucherId
+              ? { ...order, advancePaid: round2(Math.max(0, (order.advancePaid || 0) - entry.amount)), updatedAt: new Date().toISOString() }
+              : order,
+          ),
         });
       },
       savePurchase: (draft, as) => {
@@ -804,6 +823,7 @@ export const useBillingStore = create<BillingState>()(
           neededBy: draft.neededBy ?? "",
           notes: draft.notes ?? "",
           lines,
+          advancePaid: existing?.advancePaid ?? 0,
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
         };
@@ -815,6 +835,37 @@ export const useBillingStore = create<BillingState>()(
           company: { ...state.company, nextPurchaseOrderNumber },
         });
         return order;
+      },
+      recordOrderAdvance: (id, amount, meta) => {
+        const state = get();
+        const order = state.purchaseOrders.find((item) => item.id === id);
+        if (!order || order.status === "cancelled") return;
+        const add = round2(Math.max(0, amount));
+        if (add <= 0) return;
+        const seq = state.company.nextPaymentVoucherNumber ?? 1;
+        const prefix = state.company.paymentVoucherPrefix ?? "HY/PV/2627/";
+        const entry: LedgerPayment = {
+          id: crypto.randomUUID(),
+          number: formatInvoiceNumber(prefix, seq),
+          kind: "payment",
+          date: meta?.date || todayISO(),
+          partyId: order.supplierId,
+          partyName: order.supplier.name,
+          voucherId: order.id,
+          voucherNumber: order.number,
+          amount: add,
+          mode: meta?.mode || "bank",
+          reference: meta?.reference?.trim() || "Advance",
+          createdAt: new Date().toISOString(),
+        };
+        set({
+          purchaseOrders: state.purchaseOrders.map((item) =>
+            item.id === id ? { ...item, advancePaid: round2((item.advancePaid || 0) + add), updatedAt: entry.createdAt } : item,
+          ),
+          payments: [entry, ...state.payments],
+          company: { ...state.company, paymentVoucherPrefix: prefix, nextPaymentVoucherNumber: seq + 1 },
+        });
+        return entry;
       },
       setPurchaseOrderStatus: (id, status) =>
         set({
@@ -828,11 +879,14 @@ export const useBillingStore = create<BillingState>()(
           }),
         }),
       deletePurchaseOrder: (id) => {
-        const order = get().purchaseOrders.find((o) => o.id === id);
+        const state = get();
+        const order = state.purchaseOrders.find((o) => o.id === id);
         if (!order) return;
+        const payments = state.payments.filter((payment) => payment.voucherId === id);
         set({
-          purchaseOrders: get().purchaseOrders.filter((o) => o.id !== id),
-          bin: [binItem({ kind: "order", title: order.number, subtitle: order.supplier.name, order }), ...get().bin],
+          purchaseOrders: state.purchaseOrders.filter((o) => o.id !== id),
+          payments: state.payments.filter((payment) => payment.voucherId !== id),
+          bin: [binItem({ kind: "order", title: order.number, subtitle: order.supplier.name, order, payments }), ...state.bin],
         });
       },
       saveQuote: (draft, as) => {
@@ -1086,6 +1140,29 @@ export const useBillingStore = create<BillingState>()(
           bin: [binItem({ kind: "opening", title: item.partyName, subtitle: item.kind, opening: item, payments }), ...state.bin],
         });
       },
+      saveExpense: (input) => {
+        const amount = round2(Math.max(0, input.amount));
+        if (amount <= 0) throw new Error("Enter the amount.");
+        const entry: Expense = {
+          id: crypto.randomUUID(),
+          date: input.date || todayISO(),
+          category: input.category,
+          amount,
+          mode: input.mode || "bank",
+          note: input.note.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        set({ expenses: [entry, ...get().expenses] });
+        return entry;
+      },
+      deleteExpense: (id) => {
+        const entry = get().expenses.find((item) => item.id === id);
+        if (!entry) return;
+        set({
+          expenses: get().expenses.filter((item) => item.id !== id),
+          bin: [binItem({ kind: "expense", title: entry.note || entry.category, subtitle: entry.date, expense: entry }), ...get().bin],
+        });
+      },
       restoreBin: (id) => {
         const state = get();
         const entry = state.bin.find((item) => item.id === id);
@@ -1109,7 +1186,11 @@ export const useBillingStore = create<BillingState>()(
           return;
         }
         if (entry.kind === "order") {
-          set({ bin, purchaseOrders: [entry.order, ...state.purchaseOrders.filter((o) => o.id !== entry.order.id)] });
+          set({
+            bin,
+            purchaseOrders: [entry.order, ...state.purchaseOrders.filter((o) => o.id !== entry.order.id)],
+            payments: [...(entry.payments ?? []), ...state.payments.filter((p) => !(entry.payments ?? []).some((saved) => saved.id === p.id))],
+          });
           return;
         }
         if (entry.kind === "quote") {
@@ -1134,6 +1215,10 @@ export const useBillingStore = create<BillingState>()(
             openingDues: [entry.opening, ...state.openingDues.filter((d) => d.id !== entry.opening.id)],
             payments: [...entry.payments, ...state.payments.filter((p) => !entry.payments.some((saved) => saved.id === p.id))],
           });
+          return;
+        }
+        if (entry.kind === "expense") {
+          set({ bin, expenses: [entry.expense, ...state.expenses.filter((item) => item.id !== entry.expense.id)] });
           return;
         }
         const pay = entry.payment;
@@ -1165,6 +1250,11 @@ export const useBillingStore = create<BillingState>()(
           openingDues: state.openingDues.map((d) =>
             d.id === pay.voucherId ? { ...d, paidAmount: round2((d.paidAmount || 0) + pay.amount) } : d,
           ),
+          purchaseOrders: state.purchaseOrders.map((order) =>
+            order.id === pay.voucherId
+              ? { ...order, advancePaid: round2((order.advancePaid || 0) + pay.amount), updatedAt: new Date().toISOString() }
+              : order,
+          ),
         });
       },
       purgeBin: (id) => set({ bin: get().bin.filter((item) => item.id !== id) }),
@@ -1190,6 +1280,7 @@ export const useBillingStore = create<BillingState>()(
           payments: [],
           adjustments: [],
           openingDues: [],
+          expenses: [],
           bin: [],
         });
       },
