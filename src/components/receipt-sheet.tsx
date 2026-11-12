@@ -93,6 +93,7 @@ export function ReceiptSheet({
         <div />
         <p>{company.signatory || "Authorised Signatory"}</p>
       </footer>
+      <p className="pay-thanks">This is a computer-generated bill and does not require a seal or signature.</p>
     </article>
   );
 }

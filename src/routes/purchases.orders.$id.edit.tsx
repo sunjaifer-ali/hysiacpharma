@@ -4,10 +4,16 @@ import { PurchaseOrderEditor } from "@/components/purchase-order-editor";
 import { Button } from "@/components/ui/button";
 import { useBillingStore } from "@/lib/store";
 
-export const Route = createFileRoute("/purchases/orders/$id/edit")({ component: EditPurchaseOrderPage });
+export const Route = createFileRoute("/purchases/orders/$id/edit")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    low: search.low === true || search.low === "1" || search.low === "true",
+  }),
+  component: EditPurchaseOrderPage,
+});
 
 function EditPurchaseOrderPage() {
   const { id } = Route.useParams();
+  const { low } = Route.useSearch();
   const order = useBillingStore((s) => s.purchaseOrders.find((item) => item.id === id));
   if (!order) {
     return (
@@ -23,9 +29,8 @@ function EditPurchaseOrderPage() {
     <AppShell>
       <div className="mb-5">
         <h1 className="font-display text-3xl">Edit {order.number}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Update the request. Stock is unchanged until a purchase bill is posted.</p>
       </div>
-      <PurchaseOrderEditor existing={order} />
+      <PurchaseOrderEditor existing={order} prefillLow={low} />
     </AppShell>
   );
 }

@@ -85,10 +85,11 @@ type BillingState = {
   saveOpeningDue: (input: { partyId: string; kind: OpeningDue["kind"]; date: string; amount: number }) => OpeningDue;
   settleOpeningDue: (id: string, amount: number, meta?: { date?: string; mode?: LedgerPayment["mode"]; reference?: string }) => LedgerPayment | undefined;
   deleteOpeningDue: (id: string) => void;
-  saveExpense: (input: { date: string; category: Expense["category"]; amount: number; mode: PaymentMode; note: string }) => Expense;
+  saveExpense: (input: { id?: string; date: string; category: Expense["category"]; amount: number; mode: PaymentMode; note: string }) => Expense;
   deleteExpense: (id: string) => void;
-  saveDeposit: (input: { date: string; amount: number; source: BankDeposit["source"]; note: string }) => BankDeposit;
+  saveDeposit: (input: { id?: string; date: string; amount: number; source: BankDeposit["source"]; note: string }) => BankDeposit;
   deleteDeposit: (id: string) => void;
+  updatePayment: (id: string, patch: { date?: string; mode?: PaymentMode; reference?: string; amount?: number }) => void;
   restoreBin: (id: string) => void;
   purgeBin: (id: string) => void;
   emptyBin: () => void;
@@ -749,6 +750,27 @@ export const useBillingStore = create<BillingState>()(
           ),
         });
       },
+      updatePayment: (id, patch) => {
+        const state = get();
+        const entry = state.payments.find((item) => item.id === id);
+        if (!entry) return;
+        const nextAmount = patch.amount == null ? entry.amount : round2(Math.max(0, patch.amount));
+        const diff = round2(nextAmount - entry.amount);
+        const next = {
+          ...entry,
+          date: patch.date || entry.date,
+          mode: patch.mode || entry.mode,
+          reference: patch.reference == null ? entry.reference : patch.reference.trim(),
+          amount: nextAmount,
+        };
+        set({
+          payments: state.payments.map((item) => (item.id === id ? next : item)),
+          invoices: state.invoices.map((item) => (item.id === entry.voucherId && entry.kind === "receipt" ? { ...item, paidAmount: round2(Math.max(0, item.paidAmount + diff)) } : item)),
+          purchases: state.purchases.map((item) => (item.id === entry.voucherId && entry.kind === "payment" ? { ...item, paidAmount: round2(Math.max(0, (item.paidAmount || 0) + diff)) } : item)),
+          purchaseOrders: state.purchaseOrders.map((item) => (item.id === entry.voucherId && entry.kind === "payment" ? { ...item, advancePaid: round2(Math.max(0, (item.advancePaid || 0) + diff)) } : item)),
+          openingDues: state.openingDues.map((item) => (item.id === entry.voucherId ? { ...item, paidAmount: round2(Math.max(0, (item.paidAmount || 0) + diff)) } : item)),
+        });
+      },
       savePurchase: (draft, as) => {
         const state = get();
         const supplier = state.parties.find((p) => p.id === draft.supplierId);
@@ -1213,16 +1235,18 @@ export const useBillingStore = create<BillingState>()(
       saveExpense: (input) => {
         const amount = round2(Math.max(0, input.amount));
         if (amount <= 0) throw new Error("Enter the amount.");
+        const state = get();
+        const existing = input.id ? state.expenses.find((item) => item.id === input.id) : undefined;
         const entry: Expense = {
-          id: crypto.randomUUID(),
+          id: existing?.id ?? crypto.randomUUID(),
           date: input.date || todayISO(),
           category: input.category,
           amount,
           mode: input.mode || "bank",
           note: input.note.trim(),
-          createdAt: new Date().toISOString(),
+          createdAt: existing?.createdAt ?? new Date().toISOString(),
         };
-        set({ expenses: [entry, ...get().expenses] });
+        set({ expenses: existing ? state.expenses.map((item) => (item.id === entry.id ? entry : item)) : [entry, ...state.expenses] });
         return entry;
       },
       deleteExpense: (id) => {
@@ -1236,15 +1260,17 @@ export const useBillingStore = create<BillingState>()(
       saveDeposit: (input) => {
         const amount = round2(Math.max(0, input.amount));
         if (amount <= 0) throw new Error("Enter the amount.");
+        const state = get();
+        const existing = input.id ? state.deposits.find((item) => item.id === input.id) : undefined;
         const entry: BankDeposit = {
-          id: crypto.randomUUID(),
+          id: existing?.id ?? crypto.randomUUID(),
           date: input.date || todayISO(),
           amount,
           source: input.source || "own",
           note: input.note.trim(),
-          createdAt: new Date().toISOString(),
+          createdAt: existing?.createdAt ?? new Date().toISOString(),
         };
-        set({ deposits: [entry, ...get().deposits] });
+        set({ deposits: existing ? state.deposits.map((item) => (item.id === entry.id ? entry : item)) : [entry, ...state.deposits] });
         return entry;
       },
       deleteDeposit: (id) => {

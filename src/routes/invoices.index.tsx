@@ -116,6 +116,11 @@ function InvoicesPage() {
                         <Link to="/invoices/$id" params={{ id: inv.id }} className="font-medium text-primary hover:underline">
                           {inv.number}
                         </Link>
+                        {inv.status === "draft" ? (
+                          <Link to="/invoices/$id/edit" params={{ id: inv.id }} className="ml-2 text-xs text-primary hover:underline">
+                            Edit
+                          </Link>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-medium">{inv.party.name}</div>

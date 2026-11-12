@@ -68,23 +68,26 @@ export function PurchaseOrderEditor({
   const creditNotes = useBillingStore((s) => s.creditNotes);
   const adjustments = useBillingStore((s) => s.adjustments);
 
-  const seeded = existing?.lines?.length
-    ? existing.lines
-    : prefillLow
-      ? lowStockAlerts(products, purchases, invoices, creditNotes, adjustments).map((item) => {
-          const product = products.find((p) => p.id === item.productId);
-          if (product) return fromProduct(product, item.orderQty);
-          return {
-            ...emptyLine(),
-            productId: item.productId,
-            name: item.name,
-            pack: item.pack,
-            unit: asUnit(item.unit),
-            manufacturer: item.manufacturer,
-            qty: item.orderQty,
-          };
-        })
-      : [emptyLine()];
+  const seeded = (() => {
+    const base = existing?.lines?.length ? existing.lines : [];
+    if (!prefillLow) return base.length ? base : [emptyLine()];
+    const extras = lowStockAlerts(products, purchases, invoices, creditNotes, adjustments)
+      .filter((item) => !base.some((line) => line.productId === item.productId || line.name === item.name))
+      .map((item) => {
+        const product = products.find((p) => p.id === item.productId);
+        if (product) return fromProduct(product, item.orderQty);
+        return {
+          ...emptyLine(),
+          productId: item.productId,
+          name: item.name,
+          pack: item.pack,
+          unit: asUnit(item.unit),
+          manufacturer: item.manufacturer,
+          qty: item.orderQty,
+        };
+      });
+    return [...base, ...extras].length ? [...base, ...extras] : [emptyLine()];
+  })();
 
   const [supplierId, setSupplierId] = useState(existing?.supplierId ?? "");
   const [date, setDate] = useState(existing?.date ?? todayISO());

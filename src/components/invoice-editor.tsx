@@ -310,7 +310,10 @@ export function InvoiceEditor({ existing, quoteId }: { existing?: Invoice; quote
       const saved = saveInvoice(draft, as);
       if (quoteId) markQuoteOrdered(quoteId, saved.id);
       toast.success(as === "issued" ? `Issued ${saved.number}` : "Draft saved");
-      void navigate({ to: "/invoices/$id", params: { id: saved.id } });
+      void navigate({
+        to: as === "draft" ? "/invoices/$id/edit" : "/invoices/$id",
+        params: { id: saved.id },
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save");
     }

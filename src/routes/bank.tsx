@@ -1,13 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { FileSpreadsheet, Printer } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { DeleteVoucherButton } from "@/components/delete-voucher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDate, formatINR, todayISO } from "@/lib/format";
+import { downloadExcel } from "@/lib/excel";
+import { inferYearId, yearRange } from "@/lib/financial-year";
+import { formatDate, formatDateDMY, formatINR, todayISO } from "@/lib/format";
 import { round2 } from "@/lib/gst";
+import { printPage } from "@/lib/print-page";
 import { useBillingStore } from "@/lib/store";
 import type { BankDeposit, ExpenseCategory, PaymentMode } from "@/lib/types";
 import { toast } from "sonner";
@@ -71,7 +75,11 @@ function BankPage() {
   const deleteExpense = useBillingStore((s) => s.deleteExpense);
   const saveDeposit = useBillingStore((s) => s.saveDeposit);
   const deleteDeposit = useBillingStore((s) => s.deleteDeposit);
+  const deletePayment = useBillingStore((s) => s.deletePayment);
+  const updatePayment = useBillingStore((s) => s.updatePayment);
   const [opening, setOpening] = useState(String(company.bankOpening ?? 15400));
+  const [correcting, setCorrecting] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [category, setCategory] = useState<ExpenseCategory>("salary");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -82,13 +90,17 @@ function BankPage() {
   const [inDate, setInDate] = useState(todayISO());
   const [inSource, setInSource] = useState<BankDeposit["source"]>("own");
   const [inNote, setInNote] = useState("");
+  const fy = yearRange(inferYearId(company));
+  const [reportFrom, setReportFrom] = useState(fy.from);
+  const [reportTo, setReportTo] = useState(fy.to);
+  const [editing, setEditing] = useState<{ id: string; kind: "expense" | "deposit" | "payment"; amount: string; date: string; note: string; mode: PaymentMode; category: ExpenseCategory; source: BankDeposit["source"] } | null>(null);
 
   const start = company.bankOpeningDate || "2026-11-12";
   const startBalance = Number(company.bankOpening ?? 15400) || 0;
   const range = monthRange(month);
 
   const book = useMemo(() => {
-    const lines: { id: string; date: string; particular: string; in: number; out: number; kind: "payment" | "expense" | "deposit" }[] = [];
+    const lines: { id: string; date: string; particular: string; note: string; in: number; out: number; kind: "payment" | "expense" | "deposit" }[] = [];
     for (const payment of payments) {
       if (!isBank(payment.mode) || payment.date < start) continue;
       const received = payment.kind === "receipt";
@@ -96,6 +108,7 @@ function BankPage() {
         id: payment.id,
         date: payment.date,
         particular: `${received ? "Received" : "Paid"} ${payment.partyName}${payment.voucherNumber ? ` · ${payment.voucherNumber}` : ""}`,
+        note: payment.reference || "",
         in: received ? payment.amount : 0,
         out: received ? 0 : payment.amount,
         kind: "payment",
@@ -106,7 +119,8 @@ function BankPage() {
       lines.push({
         id: expense.id,
         date: expense.date,
-        particular: `${categoryLabel(expense.category)}${expense.note ? ` · ${expense.note}` : ""}`,
+        particular: categoryLabel(expense.category),
+        note: expense.note,
         in: 0,
         out: expense.amount,
         kind: "expense",
@@ -118,7 +132,8 @@ function BankPage() {
       lines.push({
         id: deposit.id,
         date: deposit.date,
-        particular: `${source}${deposit.note ? ` · ${deposit.note}` : ""}`,
+        particular: source,
+        note: deposit.note,
         in: deposit.amount,
         out: 0,
         kind: "deposit",
@@ -133,7 +148,7 @@ function BankPage() {
     const before = withBalance.filter((line) => line.date < range.from);
     const brought = before.length ? before[before.length - 1]!.balance : startBalance;
     const rows = withBalance.filter((line) => line.date >= range.from && line.date <= range.to);
-    return { rows, brought, balance: withBalance.length ? withBalance[withBalance.length - 1]!.balance : startBalance };
+    return { rows, brought, balance: withBalance.length ? withBalance[withBalance.length - 1]!.balance : startBalance, all: withBalance };
   }, [payments, expenses, deposits, start, startBalance, range.from, range.to]);
 
   const balance = book.balance;
@@ -143,6 +158,12 @@ function BankPage() {
     expenses.filter((e) => e.mode === "cash" && e.date >= start).reduce((s, e) => s + e.amount, 0) +
     deposits.filter((d) => d.source === "cash" && d.date >= start).reduce((s, d) => s + d.amount, 0);
 
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const timer = window.setTimeout(() => setSecondsLeft((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [secondsLeft]);
+
   function saveOpening() {
     const value = Number(opening);
     if (!Number.isFinite(value)) {
@@ -150,6 +171,8 @@ function BankPage() {
       return;
     }
     updateCompany({ bankOpening: round2(value), bankOpeningDate: start });
+    setCorrecting(false);
+    setSecondsLeft(0);
     toast.success("Opening bank balance saved");
   }
 
@@ -184,6 +207,65 @@ function BankPage() {
     }
   }
 
+  function beginEdit(id: string, kind: "expense" | "deposit" | "payment") {
+    if (kind === "expense") {
+      const item = expenses.find((row) => row.id === id);
+      if (!item) return;
+      setEditing({ id, kind, amount: String(item.amount), date: item.date, note: item.note, mode: item.mode, category: item.category, source: "own" });
+    } else if (kind === "deposit") {
+      const item = deposits.find((row) => row.id === id);
+      if (!item) return;
+      setEditing({ id, kind, amount: String(item.amount), date: item.date, note: item.note, mode: "bank", category: "other", source: item.source });
+    } else {
+      const item = payments.find((row) => row.id === id);
+      if (!item) return;
+      setEditing({ id, kind, amount: String(item.amount), date: item.date, note: item.reference, mode: item.mode, category: "other", source: "own" });
+    }
+  }
+
+  function saveEdit() {
+    if (!editing) return;
+    const value = Number(editing.amount);
+    if (!Number.isFinite(value) || value <= 0) {
+      toast.error("Enter the amount");
+      return;
+    }
+    try {
+      if (editing.kind === "expense") saveExpense({ id: editing.id, date: editing.date, category: editing.category, amount: value, mode: editing.mode, note: editing.note });
+      else if (editing.kind === "deposit") saveDeposit({ id: editing.id, date: editing.date, amount: value, source: editing.source, note: editing.note });
+      else updatePayment(editing.id, { date: editing.date, mode: editing.mode, reference: editing.note, amount: value });
+      setEditing(null);
+      toast.success("Entry updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update");
+    }
+  }
+
+  function reportRows() {
+    const before = book.all.filter((line) => line.date < reportFrom);
+    const brought = before.length ? before[before.length - 1]!.balance : startBalance;
+    const rows = book.all.filter((line) => line.date >= reportFrom && line.date <= reportTo);
+    return { brought, rows };
+  }
+
+  function exportReport() {
+    const report = reportRows();
+    downloadExcel(`Bank-${reportFrom}-to-${reportTo}`, [
+      {
+        name: "Bank",
+        rows: [
+          [company.legalName],
+          [`Bank book  ${formatDateDMY(reportFrom)} to ${formatDateDMY(reportTo)}`],
+          [],
+          ["Date", "Particular", "Note", "In", "Out", "Balance"],
+          [formatDateDMY(reportFrom), "Brought forward", "", "", "", report.brought],
+          ...report.rows.map((row) => [formatDateDMY(row.date), row.particular, row.note, row.in || "", row.out || "", row.balance]),
+        ],
+      },
+    ]);
+    toast.success("Bank report downloaded");
+  }
+
   return (
     <AppShell>
       <div className="mb-5">
@@ -194,17 +276,25 @@ function BankPage() {
         <div className="rounded-2xl bg-primary p-4 text-primary-foreground">
           <p className="text-[11px] uppercase tracking-wider">Bank balance</p>
           <p className="mt-1 font-display text-3xl tabular-nums">{formatINR(balance)}</p>
+          <p className="mt-1 text-xs opacity-80">Opening {formatINR(startBalance)} · {formatDate(start)}</p>
         </div>
         <div className="rounded-2xl border border-border p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Cash in hand</p>
           <p className="mt-1 text-2xl font-medium tabular-nums">{formatINR(round2(cashIn - cashOut))}</p>
         </div>
         <div className="rounded-2xl border border-border p-4">
-          <Label className="mb-1.5 block">Opening bank balance</Label>
-          <div className="flex gap-2">
-            <Input inputMode="decimal" value={opening} onChange={(e) => setOpening(e.target.value)} />
-            <Button variant="outline" onClick={saveOpening}>Save</Button>
-          </div>
+          {correcting ? (
+            <>
+              <Label className="mb-1.5 block">Correct opening</Label>
+              <div className="flex gap-2">
+                <Input inputMode="decimal" value={opening} disabled={secondsLeft > 0} onChange={(e) => setOpening(e.target.value)} />
+                <Button variant="outline" disabled={secondsLeft > 0} onClick={saveOpening}>{secondsLeft > 0 ? `${secondsLeft}s` : "Save"}</Button>
+              </div>
+              <button type="button" className="mt-2 text-xs text-muted-foreground" onClick={() => { setCorrecting(false); setSecondsLeft(0); }}>Cancel</button>
+            </>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => { setCorrecting(true); setSecondsLeft(10); }}>Correct opening</Button>
+          )}
         </div>
       </div>
 
@@ -279,7 +369,7 @@ function BankPage() {
         <Button className="mt-3" onClick={addExpense}>Save expense</Button>
       </section>
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="no-print mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-medium">{range.label}</h2>
         </div>
@@ -291,13 +381,85 @@ function BankPage() {
         </div>
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-border)]">
+      <section className="no-print mt-4 rounded-2xl border border-border p-4">
+        <h2 className="font-medium">Bank report</h2>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <div>
+            <Label className="mb-1.5 block">From</Label>
+            <Input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} />
+          </div>
+          <div>
+            <Label className="mb-1.5 block">To</Label>
+            <Input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} />
+          </div>
+          <Button type="button" variant="outline" onClick={() => { setReportFrom(fy.from); setReportTo(fy.to); }}>This FY</Button>
+          <Button type="button" variant="outline" onClick={exportReport}><FileSpreadsheet className="size-4" />Excel</Button>
+          <Button type="button" variant="outline" onClick={() => printPage("landscape")}><Printer className="size-4" />PDF</Button>
+        </div>
+      </section>
+
+      {editing ? (
+        <section className="no-print mt-4 rounded-2xl border border-border p-4">
+          <h2 className="font-medium">Edit entry</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-4">
+            <div>
+              <Label className="mb-1.5 block">Amount</Label>
+              <Input inputMode="decimal" value={editing.amount} onChange={(e) => setEditing({ ...editing, amount: e.target.value })} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Date</Label>
+              <Input type="date" value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} />
+            </div>
+            {editing.kind === "expense" ? (
+              <div>
+                <Label className="mb-1.5 block">What</Label>
+                <Select value={editing.category} onValueChange={(value) => setEditing({ ...editing, category: value as ExpenseCategory })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{CATEGORIES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            ) : null}
+            {editing.kind !== "deposit" ? (
+              <div>
+                <Label className="mb-1.5 block">From</Label>
+                <Select value={editing.mode} onValueChange={(value) => setEditing({ ...editing, mode: value as PaymentMode })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{MODES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label className="mb-1.5 block">From</Label>
+                <Select value={editing.source} onValueChange={(value) => setEditing({ ...editing, source: value as BankDeposit["source"] })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="own">Own money</SelectItem>
+                    <SelectItem value="cash">Cash from the shop</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="sm:col-span-2">
+              <Label className="mb-1.5 block">Note</Label>
+              <Input value={editing.note} onChange={(e) => setEditing({ ...editing, note: e.target.value })} />
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button onClick={saveEdit}>Save</Button>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+          </div>
+        </section>
+      ) : null}
+
+      <div className="no-print mt-3 overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-border)]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Date</th>
                 <th className="px-4 py-3 font-medium">Particular</th>
+                <th className="px-4 py-3 font-medium">Note</th>
                 <th className="px-4 py-3 text-right font-medium">In</th>
                 <th className="px-4 py-3 text-right font-medium">Out</th>
                 <th className="px-4 py-3 text-right font-medium">Balance</th>
@@ -308,35 +470,39 @@ function BankPage() {
               <tr className="border-b border-border/70">
                 <td className="px-4 py-3">{formatDate(range.from)}</td>
                 <td className="px-4 py-3">Brought forward</td>
-                <td className="px-4 py-3" />
-                <td className="px-4 py-3" />
+                <td />
+                <td />
+                <td />
                 <td className="px-4 py-3 text-right tabular-nums">{formatINR(book.brought)}</td>
                 <td />
               </tr>
               {book.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No bank entries in {range.label}.</td>
+                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No bank entries in {range.label}.</td>
                 </tr>
               ) : book.rows.map((row) => (
                 <tr key={row.id} className="border-b border-border/70 last:border-0">
                   <td className="px-4 py-3">{formatDate(row.date)}</td>
                   <td className="px-4 py-3">{row.particular}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.note || "—"}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{row.in ? formatINR(row.in) : ""}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{row.out ? formatINR(row.out) : ""}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatINR(row.balance)}</td>
                   <td className="px-2 py-3">
-                    {row.kind === "expense" || row.kind === "deposit" ? (
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => beginEdit(row.id, row.kind)}>Edit</Button>
                       <DeleteVoucherButton
                         compact
-                        title={row.kind === "deposit" ? "Remove this money added?" : "Delete this expense?"}
-                        description={row.kind === "deposit" ? "This amount is taken back out of the bank. The button stays locked for 10 seconds." : "The amount returns to the bank balance. The button stays locked for 10 seconds."}
+                        title="Delete this bank entry?"
+                        description="The bank balance is updated. The button stays locked for 10 seconds."
                         onConfirm={() => {
                           if (row.kind === "deposit") deleteDeposit(row.id);
-                          else deleteExpense(row.id);
-                          toast.success(row.kind === "deposit" ? "Money removed from the bank" : "Expense removed");
+                          else if (row.kind === "expense") deleteExpense(row.id);
+                          else deletePayment(row.id);
+                          toast.success("Entry removed");
                         }}
                       />
-                    ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -344,6 +510,43 @@ function BankPage() {
           </table>
         </div>
       </div>
+
+      <article className="print-sheet hidden print:block">
+        <h2 className="font-display text-xl">{company.legalName}</h2>
+        <p className="text-sm">Bank book · {formatDateDMY(reportFrom)} to {formatDateDMY(reportTo)}</p>
+        <table className="mt-3 w-full text-left text-sm">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Particular</th>
+              <th>Note</th>
+              <th className="text-right">In</th>
+              <th className="text-right">Out</th>
+              <th className="text-right">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{formatDate(reportFrom)}</td>
+              <td>Brought forward</td>
+              <td />
+              <td />
+              <td />
+              <td className="text-right">{formatINR(reportRows().brought)}</td>
+            </tr>
+            {reportRows().rows.map((row) => (
+              <tr key={row.id}>
+                <td>{formatDate(row.date)}</td>
+                <td>{row.particular}</td>
+                <td>{row.note || "—"}</td>
+                <td className="text-right">{row.in ? formatINR(row.in) : ""}</td>
+                <td className="text-right">{row.out ? formatINR(row.out) : ""}</td>
+                <td className="text-right">{formatINR(row.balance)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </article>
     </AppShell>
   );
 }

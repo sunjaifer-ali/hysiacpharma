@@ -63,7 +63,7 @@ function PurchaseOrderPage() {
           </Button>
           {order.status !== "cancelled" ? (
             <Button asChild variant="outline">
-              <Link to="/purchases/orders/$id/edit" params={{ id: order.id }}>
+              <Link to="/purchases/orders/$id/edit" params={{ id: order.id }} search={{ low: false }}>
                 Edit
               </Link>
             </Button>
