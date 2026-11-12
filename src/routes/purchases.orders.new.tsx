@@ -19,9 +19,7 @@ function NewPurchaseOrderPage() {
         </Link>
         <h1 className="font-display text-3xl">New purchase order</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {low
-            ? "Quantities below are enough to bring each item back above the low-stock limit. Change them before sending."
-            : "List what you need from the supplier, then print or share the order."}
+          {low ? "Quantities are set to refill low stock." : ""}
         </p>
       </div>
       <PurchaseOrderEditor prefillLow={low} />

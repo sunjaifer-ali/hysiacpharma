@@ -103,7 +103,7 @@ function InvoicesPage() {
                 <tr>
                   <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
                     {invoices.length === 0
-                      ? "No invoices yet. Create a tax invoice to start."
+                      ? "No invoices yet."
                       : "No invoices in this period."}
                   </td>
                 </tr>

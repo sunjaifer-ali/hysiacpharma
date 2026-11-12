@@ -117,9 +117,6 @@ function LoginForm() {
           <form onSubmit={recover} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)] sm:p-8">
             <div className="text-center">
               <h1 className="font-display text-3xl">New password</h1>
-              <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
-                Fill all three boxes, then save. After that, sign in with the user name and the new password.
-              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="recover-user">User name</Label>
@@ -144,9 +141,6 @@ function LoginForm() {
         <form onSubmit={submit} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)] sm:p-8">
           <div className="text-center">
             <h1 className="font-display text-3xl">Sign in</h1>
-            <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Sign in with your Hysiac account to open billing and business records.
-            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="login-user">User name</Label>

@@ -59,7 +59,7 @@ export function PurchaseOrderSheet({ order }: { order: PurchaseOrder }) {
         </div>
       </div>
 
-      <p className="mt-3 text-[11px]">Please supply the following. This is a request, not a tax invoice.</p>
+      <p className="mt-3 text-[11px]">Please supply the following.</p>
 
       <table className="mt-2 w-full border-collapse text-left">
         <thead>

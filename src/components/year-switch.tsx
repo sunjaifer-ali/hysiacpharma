@@ -23,7 +23,7 @@ export function YearSwitch({ canChange }: { canChange: boolean }) {
     if (busy) return;
     if (start) {
       const sure = window.confirm(
-        `Start ${yearLabel(target)}?\n\nBill numbers begin at 1. Products, parties, stock, unpaid bills, open purchase orders, bank, cash and GST payable are carried. ${yearLabel(year)} remains saved and can be opened again.`,
+        `Start ${yearLabel(target)}?\n\nNumbers begin at 1. Stock, dues, open orders, bank, cash and GST are carried. ${yearLabel(year)} stays saved.`,
       );
       if (!sure) return;
     }

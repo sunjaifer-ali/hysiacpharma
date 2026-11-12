@@ -213,9 +213,6 @@ function AccountsPage() {
       <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl">Accounts</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Profit & loss, invoice margins, balance sheet and books — pick dates, then Excel or A4 PDF.
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={exportCurrent}>
@@ -320,9 +317,6 @@ function AccountsPage() {
                 <p className="mt-1 text-xl font-medium tabular-nums">{formatINR(pnl.netProfit)}</p>
               </div>
             </div>
-            <p className="mt-4 text-[11px] text-sage">
-              Income is net sales. Cost of goods is opening stock plus purchases minus closing stock. Expenses are salary, fees, rent and the other spending recorded in Bank. GST, customer receipts, supplier payments and money added to the bank are not profit.
-            </p>
           </StatementFrame>
         </TabsContent>
 
@@ -335,10 +329,6 @@ function AccountsPage() {
             period={periodLine("For the period")}
           >
             <InvoiceProfitTable rows={profits.rows} totals={profits.totals} />
-            <p className="mt-4 text-[11px] text-sage">
-              Buy price is average purchase cost of that batch (PTS if never purchased). Selling price is the billed
-              rate. Margin is taxable value minus cost of billed and free quantity. GST is excluded.
-            </p>
           </StatementFrame>
         </TabsContent>
 
@@ -360,10 +350,6 @@ function AccountsPage() {
                 <StatementTable lines={bs.assetLines} />
               </div>
             </div>
-            <p className="mt-4 text-[11px] text-sage">
-              Debtors are unpaid invoices plus opening customer balances. Creditors are unpaid purchase bills plus opening supplier balances. Capital is the
-              balancing figure.
-            </p>
           </StatementFrame>
         </TabsContent>
 
@@ -426,9 +412,6 @@ function AccountsPage() {
             <p className="mt-4 text-right font-display text-2xl text-forest">
               {gst.netPayable >= 0 ? "GST payable " : "GST credit "}
               {formatINR(Math.abs(gst.netPayable))}
-            </p>
-            <p className="mt-2 text-[11px] text-sage">
-              This period: output minus input is {formatINR(round2(gst.payable.cgst + gst.payable.sgst + gst.payable.igst))}. GST paid in this period {formatINR(gst.paid)}. Brought from last year {formatINR(gst.opening)}. The figure above is the total still payable.
             </p>
           </StatementFrame>
         </TabsContent>

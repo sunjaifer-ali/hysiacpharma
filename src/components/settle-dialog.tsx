@@ -44,9 +44,7 @@ export function SettleDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
-          <p className="text-sm text-muted-foreground">
-            {note ?? `Due now ${formatINR(due)}. Enter only this receipt or payment, not the bill total.`}
-          </p>
+          <p className="text-sm text-muted-foreground">{note ?? `Due ${formatINR(due)}`}</p>
           <div className="space-y-1.5">
             <Label>Amount</Label>
             <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />

@@ -270,9 +270,6 @@ function ReportsPage() {
       <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl">Reports</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            GST lists for the accountant — Excel and PDF, same columns as your Tally export.
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={exportCurrent}>

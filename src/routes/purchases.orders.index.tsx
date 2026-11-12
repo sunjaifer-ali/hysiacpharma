@@ -37,7 +37,7 @@ function PurchaseOrdersPage() {
         <div>
           <h1 className="font-display text-3xl">Purchase orders</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {rows.length} orders · {period.label}. An order does not change stock or GST until the purchase bill is posted.
+            {rows.length} orders · {period.label}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

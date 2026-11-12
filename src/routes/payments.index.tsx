@@ -120,7 +120,6 @@ function PaymentsPage() {
     <AppShell>
       <div className="mb-5">
         <h1 className="font-display text-3xl">Payments</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Receive from customers and pay suppliers against open bills.</p>
       </div>
 
       <div className="flex flex-wrap gap-2">

@@ -160,7 +160,7 @@ function PurchaseOrderPage() {
         onOpenChange={setPayOpen}
         title={`Advance for ${order.number}`}
         due={0}
-        note="This is money paid to the supplier before the goods arrive. It is saved as a payment voucher and shown on the supplier ledger."
+        note="Advance paid to the supplier before the goods arrive."
         onSave={(input) => {
           const saved = recordAdvance(order.id, input.amount, input);
           if (!saved) {

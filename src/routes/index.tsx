@@ -175,7 +175,7 @@ function Home() {
           </CardHeader>
           <CardContent className="space-y-1 px-2 pb-3">
             {recent.length === 0 ? (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">No invoices yet. Start with a purchase, then a tax invoice.</p>
+              <p className="px-3 py-8 text-center text-sm text-muted-foreground">No invoices yet.</p>
             ) : (
               recent.map((inv) => {
                 const t = invoiceTotals(inv);

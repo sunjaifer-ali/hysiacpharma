@@ -188,9 +188,6 @@ function BankPage() {
     <AppShell>
       <div className="mb-5">
         <h1 className="font-display text-3xl">Bank</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Starts at {formatINR(startBalance)} on {formatDate(start)}. Customer receipts add to the bank. Supplier payments and expenses reduce it.
-        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -201,7 +198,6 @@ function BankPage() {
         <div className="rounded-2xl border border-border p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Cash in hand</p>
           <p className="mt-1 text-2xl font-medium tabular-nums">{formatINR(round2(cashIn - cashOut))}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Cash receipts minus cash payments and cash expenses, from {formatDate(start)}.</p>
         </div>
         <div className="rounded-2xl border border-border p-4">
           <Label className="mb-1.5 block">Opening bank balance</Label>
@@ -214,7 +210,6 @@ function BankPage() {
 
       <section className="mt-5 rounded-2xl border border-border p-4">
         <h2 className="font-medium">Add money to bank</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Use this when you put your own money, or cash, into the bank so payments can be made.</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-4">
           <div>
             <Label className="mb-1.5 block">Amount</Label>
@@ -287,7 +282,6 @@ function BankPage() {
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-medium">{range.label}</h2>
-          <p className="text-sm text-muted-foreground">Only this month is listed. The bank balance above is the full balance.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => setMonth((current) => shiftMonth(current, -1))}>Previous</Button>

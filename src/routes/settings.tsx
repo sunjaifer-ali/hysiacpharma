@@ -110,9 +110,6 @@ function SettingsPage() {
     <AppShell>
       <div className="mb-5">
         <h1 className="font-display text-3xl">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Company details stay closed until you choose Edit details. A save waits 10 seconds so it can be cancelled.
-        </p>
       </div>
 
       <div className="grid gap-4">
@@ -136,7 +133,6 @@ function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Business identity</CardTitle>
-            <CardDescription>Registered particulars for Hysiac Pharmaceuticals Pvt Ltd</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
             <Field label="Legal name" className="sm:col-span-2">
@@ -155,8 +151,7 @@ function SettingsPage() {
               />
               <p className="mt-1 text-[11px] text-muted-foreground">
                 PAN {panFromGstin(form.gstin) || "—"}
-                {form.gstin && !isValidGstin(form.gstin) ? " · GSTIN checksum failed" : ""}
-                {" · Check the checksum before saving"}
+                {form.gstin && !isValidGstin(form.gstin) ? " · Invalid GSTIN" : ""}
               </p>
             </Field>
             <Field label="CIN">
@@ -200,7 +195,6 @@ function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Drug licences</CardTitle>
-            <CardDescription>Wholesale licence numbers printed on invoices.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
             <Field label="Form 20B (wholesale)">
@@ -313,7 +307,7 @@ function SettingsPage() {
             {secondsLeft > 0 ? "Cancel save" : "Cancel"}
           </Button>
           {secondsLeft > 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing is stored until these 10 seconds finish.</p>
+            <p className="text-sm text-muted-foreground">Wait {secondsLeft}s</p>
           ) : null}
         </div>
           </>

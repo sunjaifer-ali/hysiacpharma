@@ -49,7 +49,7 @@ function PurchasesPage() {
         <div>
           <h1 className="font-display text-3xl">Purchases</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {rows.length} bills · {period.label}. Enter supplier challans as printed — qty, free, rate, GST, transport and e-way.
+            {rows.length} bills · {period.label}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -115,7 +115,7 @@ function PurchasesPage() {
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
-                    {purchases.length === 0 ? "No purchases yet. Post a supplier bill to start stock." : "No purchases in this period."}
+                    {purchases.length === 0 ? "No purchases yet." : "No purchases in this period."}
                   </td>
                 </tr>
               ) : (
