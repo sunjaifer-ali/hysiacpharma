@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { todayISO } from "@/lib/format";
-import { GST_RATES, INDIAN_STATES, formatInvoiceNumber, gstModeCaption, invoiceTotals, isIntraState } from "@/lib/gst";
+import { GST_RATES, INDIAN_STATES, formatInvoiceNumber, gstModeCaption, invoiceTotals, isIntraState, nearestRupeeRoundOff } from "@/lib/gst";
 import { channelLabel, priceListForChannel, priceListLabel, rateForList, rateFromLine } from "@/lib/pricing";
 import { reline, useBillingStore } from "@/lib/store";
 import { unitsOnHand } from "@/lib/registers";
@@ -94,7 +94,6 @@ export function InvoiceEditor({ existing, quoteId }: { existing?: Invoice; quote
   const [placeOfSupply, setPlaceOfSupply] = useState(existing?.placeOfSupply ?? company.stateCode);
   const [reverseCharge, setReverseCharge] = useState(existing?.reverseCharge ?? false);
   const [notes, setNotes] = useState(existing?.notes ?? "");
-  const [roundOff, setRoundOff] = useState(existing?.roundOff ?? 0);
   const [salesman, setSalesman] = useState(existing?.salesman ?? company.salesman);
   const [poNumber, setPoNumber] = useState(existing?.poNumber ?? "");
   const [transport, setTransport] = useState(existing?.transport ?? "");
@@ -126,6 +125,14 @@ export function InvoiceEditor({ existing, quoteId }: { existing?: Invoice; quote
 
   const preview: Invoice = useMemo(() => {
     const relined = lines.map((l) => reline(l, intra));
+    const beforeRound = invoiceTotals({
+      lines: relined,
+      roundOff: 0,
+      transportCharges: existing?.transportCharges ?? 0,
+      otherCharges: existing?.otherCharges ?? 0,
+      creditApplied: existing?.creditApplied ?? 0,
+    }).grand;
+    const roundOff = nearestRupeeRoundOff(beforeRound);
     return {
       id: existing?.id ?? "preview",
       number:
@@ -199,7 +206,7 @@ export function InvoiceEditor({ existing, quoteId }: { existing?: Invoice; quote
       createdAt: existing?.createdAt ?? "",
       updatedAt: "",
     };
-  }, [lines, intra, existing, company, date, partyId, party, placeOfSupply, reverseCharge, roundOff, notes, priceList, billKind, salesman, poNumber, transport, ewayBill]);
+  }, [lines, intra, existing, company, date, partyId, party, placeOfSupply, reverseCharge, notes, priceList, billKind, salesman, poNumber, transport, ewayBill]);
 
   const totals = invoiceTotals(preview);
 
@@ -295,7 +302,7 @@ export function InvoiceEditor({ existing, quoteId }: { existing?: Invoice; quote
       otherCharges: existing?.otherCharges ?? 0,
       creditApplied: existing?.creditApplied ?? 0,
       lines: filled.map((l) => reline({ ...l, priceList }, intra)),
-      roundOff,
+      roundOff: preview.roundOff,
       notes,
       paidAmount: existing?.paidAmount ?? 0,
     };
@@ -539,15 +546,12 @@ export function InvoiceEditor({ existing, quoteId }: { existing?: Invoice; quote
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="round">Round off</Label>
-          <Input
-            id="round"
-            type="number"
-            step="0.01"
-            value={roundOff}
-            onChange={(e) => setRoundOff(Number(e.target.value))}
-          />
+        <div className="rounded-xl bg-secondary/70 p-3 text-sm">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Round off</span>
+            <span className="tabular-nums">{totals.roundOff > 0 ? "+" : ""}₹{totals.roundOff.toFixed(2)}</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">The final amount is rounded to the nearest rupee.</p>
         </div>
         <div className="rounded-xl bg-secondary/70 p-3 text-sm">
           <div className="flex justify-between text-muted-foreground">

@@ -89,6 +89,12 @@ export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+/** Paisa adjustment that makes a bill total the nearest rupee. */
+export function nearestRupeeRoundOff(amount: number): number {
+  const exact = round2(amount);
+  return round2(Math.round(exact) - exact);
+}
+
 export function calcLine(input: {
   qty: number;
   rate: number;
