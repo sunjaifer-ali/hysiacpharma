@@ -23,6 +23,12 @@ function PurchaseDetailPage() {
   const savePurchase = useBillingStore((s) => s.savePurchase);
   const deletePurchase = useBillingStore((s) => s.deletePurchase);
   const recordPurchasePayment = useBillingStore((s) => s.recordPurchasePayment);
+  const applyOrderAdvance = useBillingStore((s) => s.applyOrderAdvance);
+  const advance = useBillingStore((s) =>
+    s.payments
+      .filter((payment) => payment.kind === "payment" && s.purchaseOrders.some((order) => order.id === payment.voucherId && order.supplierId === purchase?.supplierId))
+      .reduce((sum, payment) => sum + payment.amount, 0),
+  );
   const [payOpen, setPayOpen] = useState(false);
 
   if (!purchase) {
@@ -88,6 +94,18 @@ function PurchaseDetailPage() {
                 </Button>
               ) : null}
             </>
+          ) : null}
+          {purchase.status === "posted" && due > 0 && advance > 0.009 ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                const used = applyOrderAdvance(purchase.id);
+                if (used > 0) toast.success(`Used ${formatINR(used)} from the purchase-order advance`);
+                else toast.error("No advance left to use");
+              }}
+            >
+              Use advance {formatINR(Math.min(advance, due))}
+            </Button>
           ) : null}
           {purchase.status === "posted" && due > 0 ? (
             <Button variant="secondary" onClick={() => setPayOpen(true)}>

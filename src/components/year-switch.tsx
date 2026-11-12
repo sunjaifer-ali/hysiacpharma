@@ -23,7 +23,7 @@ export function YearSwitch({ canChange }: { canChange: boolean }) {
     if (busy) return;
     if (start) {
       const sure = window.confirm(
-        `Start ${yearLabel(target)}?\n\nInvoice, purchase, return and receipt numbers begin at 1. Products, parties and stock are copied. Amounts still due stay as opening balances. ${yearLabel(year)} remains saved and can be opened again.`,
+        `Start ${yearLabel(target)}?\n\nBill numbers begin at 1. Products, parties, stock, unpaid bills, open purchase orders, bank, cash and GST payable are carried. ${yearLabel(year)} remains saved and can be opened again.`,
       );
       if (!sure) return;
     }
@@ -46,6 +46,8 @@ export function YearSwitch({ canChange }: { canChange: boolean }) {
             payments: state.payments,
             adjustments: state.adjustments,
             openingDues: state.openingDues,
+            expenses: state.expenses,
+            deposits: state.deposits,
             bin: state.bin,
           }),
         },

@@ -2,7 +2,7 @@ import type { BooksSnapshot } from "@/lib/backup";
 import { invoiceTotals, round2 } from "@/lib/gst";
 import { invoiceNetDue } from "@/lib/returns";
 import { stockRegister } from "@/lib/registers";
-import type { CompanyProfile, OpeningDue } from "@/lib/types";
+import type { CompanyProfile, LedgerPayment, OpeningDue } from "@/lib/types";
 
 const PREFIX_KEYS = [
   "invoicePrefix",
@@ -61,6 +61,65 @@ function rewritePrefix(prefix: string, from: string, to: string): string {
   return prefix.replace(/(\d{2})(\d{2})(?!.*\d)/, to);
 }
 
+function isBank(mode: LedgerPayment["mode"]): boolean {
+  return mode === "bank" || mode === "upi" || mode === "cheque";
+}
+
+export function bankClosing(books: BooksSnapshot): number {
+  const openingDate = books.company.bankOpeningDate || "2026-11-12";
+  let balance = Number(books.company.bankOpening ?? 15400) || 0;
+  for (const payment of books.payments ?? []) {
+    if (!isBank(payment.mode) || payment.date < openingDate) continue;
+    balance += payment.kind === "receipt" ? payment.amount : -payment.amount;
+  }
+  for (const expense of books.expenses ?? []) {
+    if (!isBank(expense.mode) || expense.date < openingDate) continue;
+    balance -= expense.amount;
+  }
+  for (const deposit of books.deposits ?? []) {
+    if (deposit.date < openingDate) continue;
+    balance += deposit.amount;
+  }
+  return round2(balance);
+}
+
+export function cashClosing(books: BooksSnapshot): number {
+  const openingDate = books.company.bankOpeningDate || "2026-11-12";
+  let balance = Number(books.company.cashOpening ?? 0) || 0;
+  for (const payment of books.payments ?? []) {
+    if (payment.mode !== "cash" || payment.date < openingDate) continue;
+    balance += payment.kind === "receipt" ? payment.amount : -payment.amount;
+  }
+  for (const expense of books.expenses ?? []) {
+    if (expense.mode !== "cash" || expense.date < openingDate) continue;
+    balance -= expense.amount;
+  }
+  for (const deposit of books.deposits ?? []) {
+    if (deposit.source !== "cash" || deposit.date < openingDate) continue;
+    balance -= deposit.amount;
+  }
+  return round2(balance);
+}
+
+export function gstClosing(books: BooksSnapshot): number {
+  let output = 0;
+  let input = 0;
+  for (const invoice of books.invoices) {
+    if (invoice.status === "draft" || invoice.status === "cancelled") continue;
+    output += invoiceTotals(invoice).tax;
+  }
+  for (const note of books.creditNotes) {
+    if (note.status !== "issued") continue;
+    output -= invoiceTotals(note).tax;
+  }
+  for (const purchase of books.purchases) {
+    if (purchase.status !== "posted") continue;
+    input += invoiceTotals(purchase).tax;
+  }
+  const paid = (books.expenses ?? []).filter((item) => item.category === "gstpay").reduce((sum, item) => sum + item.amount, 0);
+  return round2((Number(books.company.gstOpening) || 0) + output - input - paid);
+}
+
 export function freshFinancialYear(books: BooksSnapshot, target: string): BooksSnapshot {
   const current = inferYearId(books.company);
   const fromShort = yearShort(current);
@@ -79,6 +138,10 @@ export function freshFinancialYear(books: BooksSnapshot, target: string): BooksS
   company.nextQuoteNumber = 1;
   company.nextReceiptNumber = 1;
   company.nextPaymentVoucherNumber = 1;
+  company.bankOpening = bankClosing(books);
+  company.bankOpeningDate = openingDate;
+  company.cashOpening = cashClosing(books);
+  company.gstOpening = gstClosing(books);
 
   const dues: OpeningDue[] = [];
   for (const due of books.openingDues ?? []) {
@@ -128,18 +191,26 @@ export function freshFinancialYear(books: BooksSnapshot, target: string): BooksS
     openingDate,
   }));
 
+  const carryOrders = (books.purchaseOrders ?? []).filter(
+    (order) => order.status === "draft" || order.status === "sent" || (order.advancePaid || 0) > 0.009,
+  );
+  const carryIds = new Set(carryOrders.map((order) => order.id));
+  const carryPayments = (books.payments ?? []).filter((payment) => carryIds.has(payment.voucherId));
+
   return {
     company,
     products,
     parties: books.parties,
     invoices: [],
     purchases: [],
-    purchaseOrders: [],
+    purchaseOrders: carryOrders,
     quotes: [],
     creditNotes: [],
-    payments: [],
+    payments: carryPayments,
     adjustments: [],
     openingDues: dues,
+    expenses: [],
+    deposits: [],
     bin: [],
   };
 }

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatDate, formatINR, todayISO } from "@/lib/format";
 import { round2 } from "@/lib/gst";
 import { useBillingStore } from "@/lib/store";
-import type { ExpenseCategory, PaymentMode } from "@/lib/types";
+import type { BankDeposit, ExpenseCategory, PaymentMode } from "@/lib/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/bank")({ component: BankPage });
@@ -17,6 +17,9 @@ export const Route = createFileRoute("/bank")({ component: BankPage });
 const CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: "salary", label: "Salary" },
   { value: "ca", label: "CA / office fees" },
+  { value: "gst", label: "GST filing fees" },
+  { value: "gstpay", label: "GST payment" },
+  { value: "purchase", label: "Purchase" },
   { value: "rent", label: "Rent" },
   { value: "electricity", label: "Electricity" },
   { value: "phone", label: "Telephone" },
@@ -35,6 +38,25 @@ function isBank(mode: PaymentMode): boolean {
   return mode === "bank" || mode === "upi" || mode === "cheque";
 }
 
+function monthKey(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthRange(key: string): { from: string; to: string; label: string } {
+  const [year, month] = key.split("-").map(Number);
+  const from = `${year}-${String(month).padStart(2, "0")}-01`;
+  const last = new Date(year, month, 0).getDate();
+  const to = `${year}-${String(month).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  const label = new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+  return { from, to, label };
+}
+
+function shiftMonth(key: string, by: number): string {
+  const [year, month] = key.split("-").map(Number);
+  const next = new Date(year, month - 1 + by, 1);
+  return monthKey(next);
+}
+
 function categoryLabel(value: ExpenseCategory): string {
   return CATEGORIES.find((item) => item.value === value)?.label ?? value;
 }
@@ -44,20 +66,29 @@ function BankPage() {
   const updateCompany = useBillingStore((s) => s.updateCompany);
   const payments = useBillingStore((s) => s.payments);
   const expenses = useBillingStore((s) => s.expenses);
+  const deposits = useBillingStore((s) => s.deposits);
   const saveExpense = useBillingStore((s) => s.saveExpense);
   const deleteExpense = useBillingStore((s) => s.deleteExpense);
+  const saveDeposit = useBillingStore((s) => s.saveDeposit);
+  const deleteDeposit = useBillingStore((s) => s.deleteDeposit);
   const [opening, setOpening] = useState(String(company.bankOpening ?? 15400));
   const [category, setCategory] = useState<ExpenseCategory>("salary");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
   const [mode, setMode] = useState<PaymentMode>("bank");
   const [note, setNote] = useState("");
+  const [month, setMonth] = useState(monthKey());
+  const [inAmount, setInAmount] = useState("");
+  const [inDate, setInDate] = useState(todayISO());
+  const [inSource, setInSource] = useState<BankDeposit["source"]>("own");
+  const [inNote, setInNote] = useState("");
 
   const start = company.bankOpeningDate || "2026-11-12";
   const startBalance = Number(company.bankOpening ?? 15400) || 0;
+  const range = monthRange(month);
 
-  const rows = useMemo(() => {
-    const lines: { id: string; date: string; particular: string; in: number; out: number; kind: "payment" | "expense" }[] = [];
+  const book = useMemo(() => {
+    const lines: { id: string; date: string; particular: string; in: number; out: number; kind: "payment" | "expense" | "deposit" }[] = [];
     for (const payment of payments) {
       if (!isBank(payment.mode) || payment.date < start) continue;
       const received = payment.kind === "receipt";
@@ -81,19 +112,36 @@ function BankPage() {
         kind: "expense",
       });
     }
+    for (const deposit of deposits) {
+      if (deposit.date < start) continue;
+      const source = deposit.source === "cash" ? "Cash put in" : deposit.source === "own" ? "Money added" : "Other money in";
+      lines.push({
+        id: deposit.id,
+        date: deposit.date,
+        particular: `${source}${deposit.note ? ` · ${deposit.note}` : ""}`,
+        in: deposit.amount,
+        out: 0,
+        kind: "deposit",
+      });
+    }
     lines.sort((a, b) => a.date.localeCompare(b.date) || a.particular.localeCompare(b.particular));
     let balance = startBalance;
-    return lines.map((line) => {
+    const withBalance = lines.map((line) => {
       balance = round2(balance + line.in - line.out);
       return { ...line, balance };
     });
-  }, [payments, expenses, start, startBalance]);
+    const before = withBalance.filter((line) => line.date < range.from);
+    const brought = before.length ? before[before.length - 1]!.balance : startBalance;
+    const rows = withBalance.filter((line) => line.date >= range.from && line.date <= range.to);
+    return { rows, brought, balance: withBalance.length ? withBalance[withBalance.length - 1]!.balance : startBalance };
+  }, [payments, expenses, deposits, start, startBalance, range.from, range.to]);
 
-  const balance = rows.length ? rows[rows.length - 1]!.balance : startBalance;
-  const cashIn = payments.filter((p) => p.mode === "cash" && p.kind === "receipt" && p.date >= start).reduce((s, p) => s + p.amount, 0);
+  const balance = book.balance;
+  const cashIn = (company.cashOpening || 0) + payments.filter((p) => p.mode === "cash" && p.kind === "receipt" && p.date >= start).reduce((s, p) => s + p.amount, 0);
   const cashOut =
     payments.filter((p) => p.mode === "cash" && p.kind === "payment" && p.date >= start).reduce((s, p) => s + p.amount, 0) +
-    expenses.filter((e) => e.mode === "cash" && e.date >= start).reduce((s, e) => s + e.amount, 0);
+    expenses.filter((e) => e.mode === "cash" && e.date >= start).reduce((s, e) => s + e.amount, 0) +
+    deposits.filter((d) => d.source === "cash" && d.date >= start).reduce((s, d) => s + d.amount, 0);
 
   function saveOpening() {
     const value = Number(opening);
@@ -105,6 +153,21 @@ function BankPage() {
     toast.success("Opening bank balance saved");
   }
 
+  function addMoney() {
+    const value = Number(inAmount);
+    if (!Number.isFinite(value) || value <= 0) {
+      toast.error("Enter the amount");
+      return;
+    }
+    try {
+      saveDeposit({ date: inDate, amount: value, source: inSource, note: inNote });
+      setInAmount("");
+      setInNote("");
+      toast.success("Money added to the bank");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save");
+    }
+  }
   function addExpense() {
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) {
@@ -150,6 +213,37 @@ function BankPage() {
       </div>
 
       <section className="mt-5 rounded-2xl border border-border p-4">
+        <h2 className="font-medium">Add money to bank</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Use this when you put your own money, or cash, into the bank so payments can be made.</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+          <div>
+            <Label className="mb-1.5 block">Amount</Label>
+            <Input inputMode="decimal" value={inAmount} onChange={(e) => setInAmount(e.target.value)} />
+          </div>
+          <div>
+            <Label className="mb-1.5 block">Date</Label>
+            <Input type="date" value={inDate} onChange={(e) => setInDate(e.target.value)} />
+          </div>
+          <div>
+            <Label className="mb-1.5 block">From</Label>
+            <Select value={inSource} onValueChange={(value) => setInSource(value as BankDeposit["source"])}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="own">Own money</SelectItem>
+                <SelectItem value="cash">Cash from the shop</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1.5 block">Note</Label>
+            <Input value={inNote} onChange={(e) => setInNote(e.target.value)} placeholder="Optional" />
+          </div>
+        </div>
+        <Button className="mt-3" onClick={addMoney}>Add to bank</Button>
+      </section>
+
+      <section className="mt-5 rounded-2xl border border-border p-4">
         <h2 className="font-medium">Add spending</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-5">
           <div>
@@ -190,7 +284,20 @@ function BankPage() {
         <Button className="mt-3" onClick={addExpense}>Save expense</Button>
       </section>
 
-      <div className="mt-5 overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-border)]">
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-medium">{range.label}</h2>
+          <p className="text-sm text-muted-foreground">Only this month is listed. The bank balance above is the full balance.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => setMonth((current) => shiftMonth(current, -1))}>Previous</Button>
+          <Input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className="w-44" />
+          <Button type="button" variant="outline" onClick={() => setMonth((current) => shiftMonth(current, 1))}>Next</Button>
+          <Button type="button" variant="ghost" onClick={() => setMonth(monthKey())}>This month</Button>
+        </div>
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-border)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -205,14 +312,18 @@ function BankPage() {
             </thead>
             <tbody>
               <tr className="border-b border-border/70">
-                <td className="px-4 py-3">{formatDate(start)}</td>
-                <td className="px-4 py-3">Opening balance</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatINR(startBalance)}</td>
+                <td className="px-4 py-3">{formatDate(range.from)}</td>
+                <td className="px-4 py-3">Brought forward</td>
                 <td className="px-4 py-3" />
-                <td className="px-4 py-3 text-right tabular-nums">{formatINR(startBalance)}</td>
+                <td className="px-4 py-3" />
+                <td className="px-4 py-3 text-right tabular-nums">{formatINR(book.brought)}</td>
                 <td />
               </tr>
-              {rows.map((row) => (
+              {book.rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No bank entries in {range.label}.</td>
+                </tr>
+              ) : book.rows.map((row) => (
                 <tr key={row.id} className="border-b border-border/70 last:border-0">
                   <td className="px-4 py-3">{formatDate(row.date)}</td>
                   <td className="px-4 py-3">{row.particular}</td>
@@ -220,14 +331,15 @@ function BankPage() {
                   <td className="px-4 py-3 text-right tabular-nums">{row.out ? formatINR(row.out) : ""}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatINR(row.balance)}</td>
                   <td className="px-2 py-3">
-                    {row.kind === "expense" ? (
+                    {row.kind === "expense" || row.kind === "deposit" ? (
                       <DeleteVoucherButton
                         compact
-                        title="Delete this expense?"
-                        description="The amount returns to the bank balance. The button stays locked for 10 seconds."
+                        title={row.kind === "deposit" ? "Remove this money added?" : "Delete this expense?"}
+                        description={row.kind === "deposit" ? "This amount is taken back out of the bank. The button stays locked for 10 seconds." : "The amount returns to the bank balance. The button stays locked for 10 seconds."}
                         onConfirm={() => {
-                          deleteExpense(row.id);
-                          toast.success("Expense removed");
+                          if (row.kind === "deposit") deleteDeposit(row.id);
+                          else deleteExpense(row.id);
+                          toast.success(row.kind === "deposit" ? "Money removed from the bank" : "Expense removed");
                         }}
                       />
                     ) : null}

@@ -348,6 +348,7 @@ function SettingsPage() {
                     adjustments: s.adjustments,
                     openingDues: s.openingDues,
                     expenses: s.expenses,
+                    deposits: s.deposits,
                     bin: s.bin,
                   }),
                   BACKUP_LATEST_NAME,

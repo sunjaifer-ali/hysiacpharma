@@ -70,6 +70,10 @@ export type CompanyProfile = {
   /** Bank balance already in the account on bankOpeningDate. */
   bankOpening?: number;
   bankOpeningDate?: string;
+  /** Cash in hand on bankOpeningDate. */
+  cashOpening?: number;
+  /** GST still payable at the start of the year. Negative means input credit. */
+  gstOpening?: number;
   salesman: string;
   terms: string;
   signatory: string;
@@ -366,7 +370,7 @@ export type LedgerPayment = {
   createdAt: string;
 };
 
-export type ExpenseCategory = "salary" | "ca" | "rent" | "electricity" | "phone" | "transport" | "other";
+export type ExpenseCategory = "salary" | "ca" | "rent" | "electricity" | "phone" | "transport" | "purchase" | "gst" | "gstpay" | "other";
 
 export type Expense = {
   id: string;
@@ -374,6 +378,15 @@ export type Expense = {
   category: ExpenseCategory;
   amount: number;
   mode: PaymentMode;
+  note: string;
+  createdAt: string;
+};
+
+export type BankDeposit = {
+  id: string;
+  date: string;
+  amount: number;
+  source: "cash" | "own" | "other";
   note: string;
   createdAt: string;
 };
@@ -454,6 +467,14 @@ export type RecycleEntry =
       title: string;
       subtitle: string;
       expense: Expense;
+    }
+  | {
+      id: string;
+      kind: "deposit";
+      deletedAt: string;
+      title: string;
+      subtitle: string;
+      deposit: BankDeposit;
     }
   | {
       id: string;

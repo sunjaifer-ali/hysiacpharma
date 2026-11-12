@@ -3,7 +3,7 @@ import { invoiceTotals, round2 } from "./gst";
 import type { DateRange } from "./registers";
 import { inRange, stockRegister } from "./registers";
 import { invoiceNetDue } from "./returns";
-import type { CreditNote, Invoice, OpeningDue, Product, Purchase, StockAdjustment } from "./types";
+import type { CreditNote, Expense, ExpenseCategory, Invoice, OpeningDue, Product, Purchase, StockAdjustment } from "./types";
 
 export type StatementLine = { label: string; amount: number; indent?: boolean; total?: boolean; section?: boolean };
 
@@ -38,9 +38,23 @@ export type ProfitAndLoss = {
   closingStock: number;
   cogs: number;
   grossProfit: number;
+  expenses: number;
+  netProfit: number;
   outputGst: number;
   inputGst: number;
   lines: StatementLine[];
+};
+
+const EXPENSE_LABEL: Record<Exclude<ExpenseCategory, "gstpay">, string> = {
+  salary: "Salary",
+  ca: "CA / office fees",
+  gst: "GST filing fees",
+  purchase: "Other purchases",
+  rent: "Rent",
+  electricity: "Electricity",
+  phone: "Telephone",
+  transport: "Transport",
+  other: "Other expenses",
 };
 
 export function profitAndLoss(
@@ -50,6 +64,7 @@ export function profitAndLoss(
   products: Product[],
   range: DateRange,
   adjustments: StockAdjustment[] = [],
+  expenses: Expense[] = [],
 ): ProfitAndLoss {
   const sales = round2(
     liveInvoices(invoices)
@@ -71,6 +86,14 @@ export function profitAndLoss(
   const closing = stockValue(stockRegister(products, purchases, invoices, creditNotes, range.to, undefined, adjustments));
   const cogs = round2(opening + purchasesAmt - closing);
   const grossProfit = round2(netSales - cogs);
+  const expenseRows = (Object.keys(EXPENSE_LABEL) as Exclude<ExpenseCategory, "gstpay">[])
+    .map((category) => ({
+      category,
+      amount: round2(expenses.filter((item) => item.category === category && inRange(item.date, range)).reduce((sum, item) => sum + item.amount, 0)),
+    }))
+    .filter((row) => row.amount > 0.009);
+  const expenseTotal = round2(expenseRows.reduce((sum, row) => sum + row.amount, 0));
+  const netProfit = round2(grossProfit - expenseTotal);
 
   const outputGst = round2(
     liveInvoices(invoices)
@@ -96,7 +119,12 @@ export function profitAndLoss(
     { label: "Add: Purchases", amount: purchasesAmt, indent: true },
     { label: "Less: Closing stock", amount: -closing, indent: true },
     { label: "Cost of goods sold", amount: cogs, total: true },
-    { label: grossProfit >= 0 ? "Net profit" : "Net loss", amount: grossProfit, total: true },
+    { label: grossProfit >= 0 ? "Gross profit" : "Gross loss", amount: grossProfit, total: true },
+    { label: "Expenses", amount: 0, section: true },
+    ...expenseRows.map((row) => ({ label: EXPENSE_LABEL[row.category], amount: row.amount, indent: true })),
+    ...(expenseRows.length === 0 ? [{ label: "No expenses in this period", amount: 0, indent: true }] : []),
+    { label: "Total expenses", amount: expenseTotal, total: true },
+    { label: netProfit >= 0 ? "Net profit" : "Net loss", amount: netProfit, total: true },
   ];
 
   return {
@@ -108,6 +136,8 @@ export function profitAndLoss(
     closingStock: closing,
     cogs,
     grossProfit,
+    expenses: expenseTotal,
+    netProfit,
     outputGst,
     inputGst,
     lines,
@@ -139,6 +169,9 @@ export function balanceSheet(
   fyStart: string,
   adjustments: StockAdjustment[] = [],
   openingDues: OpeningDue[] = [],
+  expenses: Expense[] = [],
+  deposits: { date: string; amount: number }[] = [],
+  openings: { cash?: number; gst?: number } = {},
 ): BalanceSheet {
   const inventory = stockValue(stockRegister(products, purchases, invoices, creditNotes, asOn, undefined, adjustments));
   const openCustomer = openingDues.filter((d) => d.kind === "customer" && d.date <= asOn);
@@ -161,7 +194,9 @@ export function balanceSheet(
       .reduce((s, p) => s + Math.min(p.paidAmount || 0, invoiceTotals(p).grand), 0) +
       openSupplier.reduce((s, d) => s + (d.paidAmount || 0), 0),
   );
-  const cash = round2(received - paidSuppliers);
+  const spent = round2(expenses.filter((item) => item.date <= asOn).reduce((sum, item) => sum + item.amount, 0));
+  const added = round2(deposits.filter((item) => item.date <= asOn).reduce((sum, item) => sum + item.amount, 0));
+  const cash = round2((openings.cash || 0) + received - paidSuppliers - spent + added);
   const inputGst = round2(
     postedPurchases(purchases)
       .filter((p) => p.date <= asOn)
@@ -175,7 +210,8 @@ export function balanceSheet(
         .filter((n) => n.date <= asOn)
         .reduce((s, n) => s + invoiceTotals(n).tax, 0),
   );
-  const gstNet = round2(outputGst - inputGst);
+  const gstPaid = round2(expenses.filter((item) => item.category === "gstpay" && item.date <= asOn).reduce((sum, item) => sum + item.amount, 0));
+  const gstNet = round2((openings.gst || 0) + outputGst - inputGst - gstPaid);
   const gstPayable = Math.max(0, gstNet);
   const gstCredit = Math.max(0, -gstNet);
   const creditors = round2(
@@ -185,8 +221,8 @@ export function balanceSheet(
       openSupplier.reduce((s, d) => s + Math.max(0, d.amount - (d.paidAmount || 0)), 0),
   );
 
-  const pnl = profitAndLoss(invoices, purchases, creditNotes, products, { from: fyStart, to: asOn }, adjustments);
-  const profit = pnl.grossProfit;
+  const pnl = profitAndLoss(invoices, purchases, creditNotes, products, { from: fyStart, to: asOn }, adjustments, expenses);
+  const profit = pnl.netProfit;
 
   const totalAssets = round2(inventory + debtors + cash + gstCredit);
   const capital = round2(totalAssets - creditors - gstPayable);
@@ -209,7 +245,7 @@ export function balanceSheet(
       { label: "Current assets", amount: 0, section: true },
       { label: "Closing stock (at cost)", amount: inventory },
       { label: "Sundry debtors", amount: debtors },
-      { label: "Cash & bank (receipts)", amount: cash },
+      { label: "Cash & bank", amount: cash },
       { label: "GST input credit", amount: gstCredit },
       { label: "Total assets", amount: totalAssets, total: true },
     ],
@@ -420,6 +456,8 @@ export function gstComputation(
   purchases: Purchase[],
   creditNotes: CreditNote[],
   range: DateRange,
+  opening = 0,
+  expenses: Expense[] = [],
 ) {
   const sales = liveInvoices(invoices).filter((i) => inRange(i.date, range));
   const buys = postedPurchases(purchases).filter((p) => inRange(p.date, range));
@@ -469,11 +507,14 @@ export function gstComputation(
     sgst: round2(output.sgst - input.sgst),
     igst: round2(output.igst - input.igst),
   };
+  const paid = round2(expenses.filter((item) => item.category === "gstpay" && inRange(item.date, range)).reduce((sum, item) => sum + item.amount, 0));
   return {
     output,
     input,
     payable,
-    netPayable: round2(payable.cgst + payable.sgst + payable.igst),
+    paid,
+    opening: round2(opening),
+    netPayable: round2(opening + payable.cgst + payable.sgst + payable.igst - paid),
   };
 }
 

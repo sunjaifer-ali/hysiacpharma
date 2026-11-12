@@ -24,7 +24,7 @@ export function SettleDialog({
 }) {
   const [amount, setAmount] = useState(String(due));
   const [date, setDate] = useState(todayISO());
-  const [mode, setMode] = useState<PaymentMode>("cash");
+  const [mode, setMode] = useState<PaymentMode>("bank");
   const [reference, setReference] = useState("");
 
   return (

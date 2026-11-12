@@ -344,7 +344,7 @@ export const booksLoad = createServerFn({ method: "GET" }).handler(async () => {
   return { ok: true as const, books, updatedAt: row.updated_at };
 });
 
-const MERGE_KEYS = ["invoices", "purchases", "purchaseOrders", "quotes", "creditNotes", "payments", "products", "parties", "adjustments", "openingDues", "expenses", "bin"];
+const MERGE_KEYS = ["invoices", "purchases", "purchaseOrders", "quotes", "creditNotes", "payments", "products", "parties", "adjustments", "openingDues", "expenses", "deposits", "bin"];
 const NEXT_KEYS = ["nextNumber", "nextPurchaseNumber", "nextPurchaseOrderNumber", "nextReturnNumber", "nextCreditNoteNumber", "nextQuoteNumber", "nextReceiptNumber", "nextPaymentVoucherNumber"];
 
 function mergeBooks(stored: Record<string, unknown>, incoming: Record<string, unknown>, role: string): Record<string, unknown> {
@@ -441,7 +441,7 @@ export const booksSave = createServerFn({ method: "POST" })
       }
       const shrunk = (before: unknown, after: unknown) =>
         Array.isArray(before) && Array.isArray(after) && after.length < before.length;
-      const keys = ["invoices", "purchases", "products", "parties", "quotes", "creditNotes", "payments", "purchaseOrders", "openingDues", "adjustments", "expenses"];
+      const keys = ["invoices", "purchases", "products", "parties", "quotes", "creditNotes", "payments", "purchaseOrders", "openingDues", "adjustments", "expenses", "deposits"];
       if (keys.some((key) => shrunk(stored[key], payload[key]))) {
         return { ok: false, error: "Only a full-access user can delete records" };
       }

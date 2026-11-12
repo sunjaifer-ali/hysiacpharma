@@ -36,7 +36,7 @@ function PaymentsPage() {
   const [voucherId, setVoucherId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
-  const [mode, setMode] = useState<PaymentMode>(kind === "receipt" ? "cash" : "bank");
+  const [mode, setMode] = useState<PaymentMode>("bank");
   const [reference, setReference] = useState("");
 
   const openInvoices = useMemo(
@@ -124,7 +124,7 @@ function PaymentsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant={kind === "receipt" ? "default" : "outline"} onClick={() => { setKind("receipt"); setPartyId(""); setVoucherId(""); setMode("cash"); }}>
+        <Button type="button" variant={kind === "receipt" ? "default" : "outline"} onClick={() => { setKind("receipt"); setPartyId(""); setVoucherId(""); setMode("bank"); }}>
           Receive from customer
         </Button>
         <Button type="button" variant={kind === "payment" ? "default" : "outline"} onClick={() => { setKind("payment"); setPartyId(""); setVoucherId(""); setMode("bank"); }}>

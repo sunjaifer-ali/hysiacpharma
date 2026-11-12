@@ -55,6 +55,8 @@ function AccountsPage() {
   const creditNotes = useBillingStore((s) => s.creditNotes);
   const adjustments = useBillingStore((s) => s.adjustments);
   const openingDues = useBillingStore((s) => s.openingDues);
+  const expenses = useBillingStore((s) => s.expenses);
+  const deposits = useBillingStore((s) => s.deposits);
   const yearId = inferYearId(company);
   const fy = yearRange(yearId);
   const [from, setFrom] = useState(fy.from);
@@ -69,18 +71,18 @@ function AccountsPage() {
   const orient = ORIENT[tab];
 
   const pnl = useMemo(
-    () => profitAndLoss(invoices, purchases, creditNotes, products, range, adjustments),
-    [invoices, purchases, creditNotes, products, from, to, adjustments],
+    () => profitAndLoss(invoices, purchases, creditNotes, products, range, adjustments, expenses),
+    [invoices, purchases, creditNotes, products, from, to, adjustments, expenses],
   );
   const bs = useMemo(
-    () => balanceSheet(invoices, purchases, creditNotes, products, to, `${fy.start}-04-01`, adjustments, openingDues),
-    [invoices, purchases, creditNotes, products, to, fy.start, adjustments, openingDues],
+    () => balanceSheet(invoices, purchases, creditNotes, products, to, `${fy.start}-04-01`, adjustments, openingDues, expenses, deposits, { cash: company.cashOpening, gst: company.gstOpening }),
+    [invoices, purchases, creditNotes, products, to, fy.start, adjustments, openingDues, expenses, deposits, company.cashOpening, company.gstOpening],
   );
   const debtors = useMemo(() => debtorsOutstanding(invoices, creditNotes, to, openingDues), [invoices, creditNotes, to, openingDues]);
   const creditors = useMemo(() => creditorsOutstanding(purchases, to, openingDues), [purchases, to, openingDues]);
   const gst = useMemo(
-    () => gstComputation(invoices, purchases, creditNotes, range),
-    [invoices, purchases, creditNotes, from, to],
+    () => gstComputation(invoices, purchases, creditNotes, range, company.gstOpening || 0, expenses),
+    [invoices, purchases, creditNotes, from, to, company.gstOpening, expenses],
   );
   const profits = useMemo(
     () => invoiceProfits(invoices, purchases, creditNotes, products, range, adjustments),
@@ -182,6 +184,9 @@ function AccountsPage() {
             ["Output (net of credit notes)", gst.output.taxable, gst.output.cgst, gst.output.sgst, gst.output.igst],
             ["Input (purchases)", gst.input.taxable, gst.input.cgst, gst.input.sgst, gst.input.igst],
             ["Net payable / (credit)", "", gst.payable.cgst, gst.payable.sgst, gst.payable.igst],
+            ["Brought from last year", gst.opening, "", "", ""],
+            ["GST paid from bank", gst.paid, "", "", ""],
+            ["GST payable now", gst.netPayable, "", "", ""],
             ["Net GST", gst.netPayable],
           ],
         },
@@ -301,8 +306,22 @@ function AccountsPage() {
             period={periodLine("For the period")}
           >
             <StatementTable lines={pnl.lines} />
+            <div className="no-print mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Income</p>
+                <p className="mt-1 text-xl font-medium tabular-nums">{formatINR(pnl.netSales)}</p>
+              </div>
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Expenses</p>
+                <p className="mt-1 text-xl font-medium tabular-nums">{formatINR(pnl.expenses)}</p>
+              </div>
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{pnl.netProfit >= 0 ? "Net profit" : "Net loss"}</p>
+                <p className="mt-1 text-xl font-medium tabular-nums">{formatINR(pnl.netProfit)}</p>
+              </div>
+            </div>
             <p className="mt-4 text-[11px] text-sage">
-              Trading account — sales and purchases exclusive of GST. Stock valued at average purchase cost.
+              Income is net sales. Cost of goods is opening stock plus purchases minus closing stock. Expenses are salary, fees, rent and the other spending recorded in Bank. GST, customer receipts, supplier payments and money added to the bank are not profit.
             </p>
           </StatementFrame>
         </TabsContent>
@@ -407,6 +426,9 @@ function AccountsPage() {
             <p className="mt-4 text-right font-display text-2xl text-forest">
               {gst.netPayable >= 0 ? "GST payable " : "GST credit "}
               {formatINR(Math.abs(gst.netPayable))}
+            </p>
+            <p className="mt-2 text-[11px] text-sage">
+              This period: output minus input is {formatINR(round2(gst.payable.cgst + gst.payable.sgst + gst.payable.igst))}. GST paid in this period {formatINR(gst.paid)}. Brought from last year {formatINR(gst.opening)}. The figure above is the total still payable.
             </p>
           </StatementFrame>
         </TabsContent>
