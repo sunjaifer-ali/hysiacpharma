@@ -95,8 +95,9 @@ function BankPage() {
   const [cashNote, setCashNote] = useState("");
   const [cashCategory, setCashCategory] = useState<ExpenseCategory>("other");
   const fy = yearRange(inferYearId(company));
-  const [reportFrom, setReportFrom] = useState(fy.from);
-  const [reportTo, setReportTo] = useState(fy.to);
+  const thisMonth = monthRange(monthKey());
+  const [reportFrom, setReportFrom] = useState(thisMonth.from);
+  const [reportTo, setReportTo] = useState(thisMonth.to);
   const [editing, setEditing] = useState<{ id: string; kind: "expense" | "deposit" | "payment"; amount: string; date: string; note: string; mode: PaymentMode; category: ExpenseCategory; source: BankDeposit["source"] } | null>(null);
 
   const start = company.bankOpeningDate || "2026-11-12";
@@ -463,6 +464,7 @@ function BankPage() {
       <div className="no-print mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-medium">{range.label}</h2>
+          <p className="text-xs text-muted-foreground">Current month by default</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => setMonth((current) => shiftMonth(current, -1))}>Previous</Button>
@@ -483,6 +485,7 @@ function BankPage() {
             <Label className="mb-1.5 block">To</Label>
             <Input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} />
           </div>
+          <Button type="button" variant="outline" onClick={() => { setReportFrom(thisMonth.from); setReportTo(thisMonth.to); }}>This month</Button>
           <Button type="button" variant="outline" onClick={() => { setReportFrom(fy.from); setReportTo(fy.to); }}>This FY</Button>
           <Button type="button" variant="outline" onClick={exportReport}><FileSpreadsheet className="size-4" />Excel</Button>
           <Button type="button" variant="outline" onClick={() => printPage("landscape")}><Printer className="size-4" />PDF</Button>
