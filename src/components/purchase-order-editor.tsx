@@ -69,7 +69,17 @@ export function PurchaseOrderEditor({
   const adjustments = useBillingStore((s) => s.adjustments);
 
   const seeded = (() => {
-    const base = existing?.lines?.length ? existing.lines : [];
+    const base = existing?.lines?.length
+      ? existing.lines.map((line) => ({
+          ...emptyLine(),
+          ...line,
+          id: line.id || crypto.randomUUID(),
+          name: line.name || "",
+          pack: line.pack || "",
+          qty: Number(line.qty) || 1,
+          note: line.note || "",
+        }))
+      : [];
     if (!prefillLow) return base.length ? base : [emptyLine()];
     const extras = lowStockAlerts(products, purchases, invoices, creditNotes, adjustments)
       .filter((item) => !base.some((line) => line.productId === item.productId || line.name === item.name))

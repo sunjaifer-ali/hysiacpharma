@@ -95,7 +95,13 @@ function PurchaseOrdersPage() {
                     <td className="px-4 py-3 text-right tabular-nums">{order.lines.length}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{(order.advancePaid || 0) > 0 ? formatINR(order.advancePaid || 0) : "—"}</td>
                     <td className="px-2 py-3">
-                      <DeleteVoucherButton
+                      <div className="flex items-center justify-end gap-1">
+                        {order.status !== "cancelled" && order.status !== "closed" ? (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to="/purchases/orders/$id/edit" params={{ id: order.id }} search={{ low: false }}>Edit</Link>
+                          </Button>
+                        ) : null}
+                        <DeleteVoucherButton
                         compact
                         title="Delete purchase order"
                         description="Moves this purchase order to the recycle bin. Stock and purchase bills stay as they are."
@@ -105,6 +111,7 @@ function PurchaseOrdersPage() {
                           void navigate({ to: "/purchases/orders" });
                         }}
                       />
+                      </div>
                     </td>
                   </tr>
                 ))

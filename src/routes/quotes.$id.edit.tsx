@@ -27,7 +27,7 @@ function EditQuotePage() {
         </Link>
         <h1 className="font-display text-3xl">Revise quotation</h1>
       </div>
-      <QuoteEditor existing={quote} />
+      <QuoteEditor key={quote.id} existing={quote} />
     </AppShell>
   );
 }

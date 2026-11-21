@@ -74,12 +74,13 @@ function QuotesPage() {
               <th className="px-4 py-3 font-medium">Valid until</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 text-right font-medium">Value</th>
+              <th className="px-2 py-3"><span className="sr-only">Edit</span></th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                   No quotations in this period.
                 </td>
               </tr>
@@ -101,6 +102,13 @@ function QuotesPage() {
                     <Badge variant={item.status === "ordered" ? "paid" : item.status === "sent" ? "issued" : "draft"}>{LABEL[item.status]}</Badge>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatINR(invoiceTotals({ lines: item.lines, roundOff: 0 }).grand)}</td>
+                  <td className="px-2 py-2 text-right">
+                    {item.status !== "ordered" ? (
+                      <Button asChild variant="ghost" size="sm">
+                        <Link to="/quotes/$id/edit" params={{ id: item.id }}>Edit</Link>
+                      </Button>
+                    ) : null}
+                  </td>
                 </tr>
               ))
             )}

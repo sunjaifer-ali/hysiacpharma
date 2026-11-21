@@ -29,7 +29,7 @@ function EditCreditPage() {
           Issuing assigns the next credit note number if this is still a draft.
         </p>
       </div>
-      <CreditValueEditor existing={note} />
+      <CreditValueEditor key={note.id} existing={note} />
     </AppShell>
   );
 }

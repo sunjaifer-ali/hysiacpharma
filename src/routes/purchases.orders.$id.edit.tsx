@@ -30,7 +30,7 @@ function EditPurchaseOrderPage() {
       <div className="mb-5">
         <h1 className="font-display text-3xl">Edit {order.number}</h1>
       </div>
-      <PurchaseOrderEditor existing={order} prefillLow={low} />
+      <PurchaseOrderEditor key={order.id} existing={order} prefillLow={low} />
     </AppShell>
   );
 }

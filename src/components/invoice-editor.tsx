@@ -104,7 +104,27 @@ export function InvoiceEditor({ existing, quoteId }: { existing?: Invoice; quote
     existing?.priceList ?? priceListForChannel(initialParty?.channel),
   );
   const [lines, setLines] = useState<InvoiceLine[]>(
-    existing?.lines?.length ? existing.lines : [emptyLine(priceList)],
+    existing?.lines?.length
+      ? existing.lines.map((line) => ({
+          ...emptyLine(existing?.priceList ?? priceList),
+          ...line,
+          id: line.id || crypto.randomUUID(),
+          name: line.name || "",
+          hsn: line.hsn || "",
+          pack: line.pack || "",
+          batch: line.batch || "",
+          expiry: line.expiry || "",
+          qty: Number(line.qty) || 0,
+          freeQty: Number(line.freeQty) || 0,
+          rate: Number(line.rate) || 0,
+          discount: Number(line.discount) || 0,
+          gstRate: line.gstRate ?? 12,
+          taxable: Number(line.taxable) || 0,
+          cgst: Number(line.cgst) || 0,
+          sgst: Number(line.sgst) || 0,
+          igst: Number(line.igst) || 0,
+        }))
+      : [emptyLine(priceList)],
   );
 
   const party = parties.find((p) => p.id === partyId);

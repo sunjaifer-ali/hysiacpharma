@@ -94,12 +94,13 @@ function ReturnsPage() {
                 <th className="px-4 py-3 font-medium">Party</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium text-right">Credit</th>
+                <th className="px-2 py-3"><span className="sr-only">Edit</span></th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-16 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-16 text-center text-muted-foreground">
                     No return bills in this period.
                   </td>
                 </tr>
@@ -126,6 +127,13 @@ function ReturnsPage() {
                         <StatusBadge status={n.status} as="note" />
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums font-medium">{formatINR(t.grand)}</td>
+                      <td className="px-2 py-2 text-right">
+                        {n.status !== "cancelled" ? (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to="/returns/$id/edit" params={{ id: n.id }}>Edit</Link>
+                          </Button>
+                        ) : null}
+                      </td>
                     </tr>
                   );
                 })

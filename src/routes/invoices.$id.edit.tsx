@@ -26,7 +26,7 @@ function EditInvoicePage() {
       <div className="mb-5">
         <h1 className="font-display text-3xl">Edit {invoice.number}</h1>
       </div>
-      <InvoiceEditor existing={invoice} />
+      <InvoiceEditor key={invoice.id} existing={invoice} />
     </AppShell>
   );
 }

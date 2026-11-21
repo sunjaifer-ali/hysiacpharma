@@ -72,7 +72,22 @@ export function QuoteEditor({ existing }: { existing?: Quote }) {
   const [reference, setReference] = useState(existing?.reference ?? "");
   const [attention, setAttention] = useState(existing?.attention ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
-  const [lines, setLines] = useState<QuoteLine[]>(existing?.lines?.length ? existing.lines : []);
+  const [lines, setLines] = useState<QuoteLine[]>(
+    existing?.lines?.length
+      ? existing.lines.map((line) => ({
+          ...line,
+          id: line.id || crypto.randomUUID(),
+          name: line.name || "",
+          hsn: line.hsn || "",
+          pack: line.pack || "",
+          qty: Number(line.qty) || 0,
+          freeQty: Number(line.freeQty) || 0,
+          rate: Number(line.rate) || 0,
+          discountPct: Number(line.discountPct) || 0,
+          gstRate: line.gstRate ?? 12,
+        }))
+      : [],
+  );
 
   const party = parties.find((p) => p.id === partyId);
   const intra = isIntraState(company.stateCode, placeOfSupply);
