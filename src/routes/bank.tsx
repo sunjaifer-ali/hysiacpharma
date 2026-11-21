@@ -90,10 +90,6 @@ function BankPage() {
   const [inDate, setInDate] = useState(todayISO());
   const [inSource, setInSource] = useState<BankDeposit["source"]>("own");
   const [inNote, setInNote] = useState("");
-  const [cashAmount, setCashAmount] = useState("");
-  const [cashDate, setCashDate] = useState(todayISO());
-  const [cashNote, setCashNote] = useState("");
-  const [cashCategory, setCashCategory] = useState<ExpenseCategory>("other");
   const fy = yearRange(inferYearId(company));
   const thisMonth = monthRange(monthKey());
   const [reportFrom, setReportFrom] = useState(thisMonth.from);
@@ -157,15 +153,6 @@ function BankPage() {
   }, [payments, expenses, deposits, start, startBalance, range.from, range.to]);
 
   const balance = book.balance;
-  const cashIn =
-    (company.cashOpening || 0) +
-    payments.filter((p) => p.mode === "cash" && p.kind === "receipt" && p.date >= start).reduce((s, p) => s + p.amount, 0) +
-    deposits.filter((d) => d.source === "withdraw" && d.date >= start).reduce((s, d) => s + d.amount, 0);
-  const cashOut =
-    payments.filter((p) => p.mode === "cash" && p.kind === "payment" && p.date >= start).reduce((s, p) => s + p.amount, 0) +
-    expenses.filter((e) => e.mode === "cash" && e.date >= start).reduce((s, e) => s + e.amount, 0) +
-    deposits.filter((d) => d.source === "cash" && d.date >= start).reduce((s, d) => s + d.amount, 0);
-  const cashBalance = round2(cashIn - cashOut);
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -183,55 +170,6 @@ function BankPage() {
     setCorrecting(false);
     setSecondsLeft(0);
     toast.success("Opening bank balance saved");
-  }
-
-  function spendCash() {
-    const value = Number(cashAmount);
-    if (!Number.isFinite(value) || value <= 0) {
-      toast.error("Enter the amount");
-      return;
-    }
-    if (value > cashBalance + 0.009) {
-      toast.error("Not enough cash in hand");
-      return;
-    }
-    try {
-      saveExpense({ date: cashDate, category: cashCategory, amount: value, mode: "cash", note: cashNote });
-      setCashAmount("");
-      setCashNote("");
-      toast.success("Cash spent");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save");
-    }
-  }
-
-  function transferCash(direction: "to-bank" | "to-cash") {
-    const value = Number(cashAmount);
-    if (!Number.isFinite(value) || value <= 0) {
-      toast.error("Enter the amount");
-      return;
-    }
-    if (direction === "to-bank" && value > cashBalance + 0.009) {
-      toast.error("Not enough cash in hand");
-      return;
-    }
-    if (direction === "to-cash" && value > balance + 0.009) {
-      toast.error("Not enough bank balance");
-      return;
-    }
-    try {
-      saveDeposit({
-        date: cashDate,
-        amount: value,
-        source: direction === "to-bank" ? "cash" : "withdraw",
-        note: cashNote || (direction === "to-bank" ? "Cash transferred to bank" : "Cash withdrawn from bank"),
-      });
-      setCashAmount("");
-      setCashNote("");
-      toast.success(direction === "to-bank" ? "Cash transferred to bank" : "Cash withdrawn from bank");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save");
-    }
   }
 
   function addMoney() {
@@ -330,15 +268,11 @@ function BankPage() {
         <h1 className="font-display text-3xl">Bank</h1>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl bg-primary p-4 text-primary-foreground">
           <p className="text-[11px] uppercase tracking-wider">Bank balance</p>
           <p className="mt-1 font-display text-3xl tabular-nums">{formatINR(balance)}</p>
           <p className="mt-1 text-xs opacity-80">Opening {formatINR(startBalance)} · {formatDate(start)}</p>
-        </div>
-        <div className="rounded-2xl border border-border p-4">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Cash in hand</p>
-          <p className="mt-1 text-2xl font-medium tabular-nums">{formatINR(cashBalance)}</p>
         </div>
         <div className="rounded-2xl border border-border p-4">
           {correcting ? (
@@ -355,40 +289,6 @@ function BankPage() {
           )}
         </div>
       </div>
-
-      <section className="mt-5 rounded-2xl border border-border p-4">
-        <h2 className="font-medium">Cash in hand</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
-          <div>
-            <Label className="mb-1.5 block">Amount</Label>
-            <Input inputMode="decimal" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} />
-          </div>
-          <div>
-            <Label className="mb-1.5 block">Date</Label>
-            <Input type="date" value={cashDate} onChange={(e) => setCashDate(e.target.value)} />
-          </div>
-          <div>
-            <Label className="mb-1.5 block">What</Label>
-            <Select value={cashCategory} onValueChange={(value) => setCashCategory(value as ExpenseCategory)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="mb-1.5 block">Note</Label>
-            <Input value={cashNote} onChange={(e) => setCashNote(e.target.value)} placeholder="Optional" />
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button onClick={spendCash}>Spend from cash</Button>
-          <Button variant="outline" onClick={() => transferCash("to-bank")}>Transfer to bank</Button>
-          <Button variant="outline" onClick={() => transferCash("to-cash")}>Withdraw from bank</Button>
-        </div>
-      </section>
 
       <section className="mt-5 rounded-2xl border border-border p-4">
         <h2 className="font-medium">Add money to bank</h2>
@@ -408,6 +308,7 @@ function BankPage() {
               <SelectContent>
                 <SelectItem value="own">Own money</SelectItem>
                 <SelectItem value="cash">Cash from the shop</SelectItem>
+                <SelectItem value="withdraw">Withdraw to cash</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
