@@ -136,18 +136,19 @@ export function invoiceTotals(invoice: {
   otherCharges?: number;
   creditApplied?: number;
 }): InvoiceTotals {
-  const taxable = round2(invoice.lines.reduce((s, l) => s + l.taxable, 0));
-  const cgst = round2(invoice.lines.reduce((s, l) => s + l.cgst, 0));
-  const sgst = round2(invoice.lines.reduce((s, l) => s + l.sgst, 0));
-  const igst = round2(invoice.lines.reduce((s, l) => s + l.igst, 0));
+  const lines = invoice.lines ?? [];
+  const taxable = round2(lines.reduce((s, l) => s + (l.taxable || 0), 0));
+  const cgst = round2(lines.reduce((s, l) => s + (l.cgst || 0), 0));
+  const sgst = round2(lines.reduce((s, l) => s + (l.sgst || 0), 0));
+  const igst = round2(lines.reduce((s, l) => s + (l.igst || 0), 0));
   const tax = round2(cgst + sgst + igst);
   const roundOff = round2(invoice.roundOff);
   const charges = round2((invoice.transportCharges ?? 0) + (invoice.otherCharges ?? 0));
   const creditApplied = round2(invoice.creditApplied ?? 0);
   const subtotal = round2(taxable + tax);
   const grand = round2(subtotal + charges - creditApplied + roundOff);
-  const qty = invoice.lines.reduce((s, l) => s + (l.qty ?? 0), 0);
-  const freeQty = invoice.lines.reduce((s, l) => s + (l.freeQty ?? 0), 0);
+  const qty = lines.reduce((s, l) => s + (l.qty ?? 0), 0);
+  const freeQty = lines.reduce((s, l) => s + (l.freeQty ?? 0), 0);
   return {
     taxable,
     cgst,

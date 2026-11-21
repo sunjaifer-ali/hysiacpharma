@@ -57,6 +57,14 @@ function AccountsPage() {
   const openingDues = useBillingStore((s) => s.openingDues);
   const expenses = useBillingStore((s) => s.expenses);
   const deposits = useBillingStore((s) => s.deposits);
+  const safeExpenses = expenses ?? [];
+  const safeDeposits = deposits ?? [];
+  const safeInvoices = invoices ?? [];
+  const safePurchases = purchases ?? [];
+  const safeProducts = products ?? [];
+  const safeNotes = creditNotes ?? [];
+  const safeAdjustments = adjustments ?? [];
+  const safeDues = openingDues ?? [];
   const yearId = inferYearId(company);
   const fy = yearRange(yearId);
   const [from, setFrom] = useState(fy.from);
@@ -71,26 +79,26 @@ function AccountsPage() {
   const orient = ORIENT[tab];
 
   const pnl = useMemo(
-    () => profitAndLoss(invoices, purchases, creditNotes, products, range, adjustments, expenses),
-    [invoices, purchases, creditNotes, products, from, to, adjustments, expenses],
+    () => profitAndLoss(safeInvoices, safePurchases, safeNotes, safeProducts, range, safeAdjustments, safeExpenses),
+    [safeInvoices, safePurchases, safeNotes, safeProducts, from, to, safeAdjustments, safeExpenses],
   );
   const bs = useMemo(
-    () => balanceSheet(invoices, purchases, creditNotes, products, to, `${fy.start}-04-01`, adjustments, openingDues, expenses, deposits, { cash: company.cashOpening, gst: company.gstOpening }),
-    [invoices, purchases, creditNotes, products, to, fy.start, adjustments, openingDues, expenses, deposits, company.cashOpening, company.gstOpening],
+    () => balanceSheet(safeInvoices, safePurchases, safeNotes, safeProducts, to, `${fy.start}-04-01`, safeAdjustments, safeDues, safeExpenses, safeDeposits, { cash: company.cashOpening, gst: company.gstOpening }),
+    [safeInvoices, safePurchases, safeNotes, safeProducts, to, fy.start, safeAdjustments, safeDues, safeExpenses, safeDeposits, company.cashOpening, company.gstOpening],
   );
-  const debtors = useMemo(() => debtorsOutstanding(invoices, creditNotes, to, openingDues), [invoices, creditNotes, to, openingDues]);
-  const creditors = useMemo(() => creditorsOutstanding(purchases, to, openingDues), [purchases, to, openingDues]);
+  const debtors = useMemo(() => debtorsOutstanding(safeInvoices, safeNotes, to, safeDues), [safeInvoices, safeNotes, to, safeDues]);
+  const creditors = useMemo(() => creditorsOutstanding(safePurchases, to, safeDues), [safePurchases, to, safeDues]);
   const gst = useMemo(
-    () => gstComputation(invoices, purchases, creditNotes, range, company.gstOpening || 0, expenses),
-    [invoices, purchases, creditNotes, from, to, company.gstOpening, expenses],
+    () => gstComputation(safeInvoices, safePurchases, safeNotes, range, company.gstOpening || 0, safeExpenses),
+    [safeInvoices, safePurchases, safeNotes, from, to, company.gstOpening, safeExpenses],
   );
   const profits = useMemo(
-    () => invoiceProfits(invoices, purchases, creditNotes, products, range, adjustments),
-    [invoices, purchases, creditNotes, products, from, to, adjustments],
+    () => invoiceProfits(safeInvoices, safePurchases, safeNotes, safeProducts, range, safeAdjustments),
+    [safeInvoices, safePurchases, safeNotes, safeProducts, from, to, safeAdjustments],
   );
   const stock = useMemo(
-    () => stockRegister(products, purchases, invoices, creditNotes, to, undefined, adjustments),
-    [products, purchases, invoices, creditNotes, to, adjustments],
+    () => stockRegister(safeProducts, safePurchases, safeInvoices, safeNotes, to, undefined, safeAdjustments),
+    [safeProducts, safePurchases, safeInvoices, safeNotes, to, safeAdjustments],
   );
   const debtorAge = agingTotals(debtors);
   const creditorAge = agingTotals(creditors);

@@ -28,7 +28,7 @@ export function PartyLedgerPanel({ initialSide = "customer", initialParty = "" }
   const choices = parties
     .filter((party) => (side === "customer" ? party.isCustomer : party.isSupplier))
     .slice()
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   const party = choices.find((item) => item.id === partyId) ?? null;
   const selected = party?.id ?? "";
 

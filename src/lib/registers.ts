@@ -258,7 +258,7 @@ export function stockRegister(
   for (const pur of purchases) {
     if (pur.status !== "posted") continue;
     if (asOf && pur.date > asOf) continue;
-    for (const line of pur.lines) {
+    for (const line of pur.lines ?? []) {
       if (isInsuranceLine(line)) continue;
       const r = row(line.productId || line.name, line.name, line.hsn);
       r.purchaseQty += line.qty;
@@ -273,7 +273,7 @@ export function stockRegister(
     if (inv.status === "draft" || inv.status === "cancelled") continue;
     if (exceptInvoiceId && inv.id === exceptInvoiceId) continue;
     if (asOf && inv.date > asOf) continue;
-    for (const line of inv.lines) {
+    for (const line of inv.lines ?? []) {
       const r = row(line.productId || line.name, line.name, line.hsn);
       r.salesQty += line.qty;
       r.freeOut += line.freeQty;
@@ -283,7 +283,7 @@ export function stockRegister(
     if (note.status !== "issued") continue;
     if (asOf && note.date > asOf) continue;
     if (!restocksInventory(note)) continue;
-    for (const line of note.lines) {
+    for (const line of note.lines ?? []) {
       const r = row(line.productId || line.name, line.name, line.hsn);
       r.returned += line.qty + line.freeQty;
     }
@@ -303,7 +303,7 @@ export function stockRegister(
       return r;
     })
     .filter((r) => r.purchaseQty || r.freeIn || r.openingQty || r.salesQty || r.returned || r.adjusted || r.closing)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
 export function unitsOnHand(
