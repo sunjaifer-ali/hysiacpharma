@@ -78,7 +78,7 @@ export function bankClosing(books: BooksSnapshot): number {
   }
   for (const deposit of books.deposits ?? []) {
     if (deposit.date < openingDate) continue;
-    balance += deposit.amount;
+    balance += deposit.source === "withdraw" ? -deposit.amount : deposit.amount;
   }
   return round2(balance);
 }
@@ -95,8 +95,9 @@ export function cashClosing(books: BooksSnapshot): number {
     balance -= expense.amount;
   }
   for (const deposit of books.deposits ?? []) {
-    if (deposit.source !== "cash" || deposit.date < openingDate) continue;
-    balance -= deposit.amount;
+    if (deposit.date < openingDate) continue;
+    if (deposit.source === "cash") balance -= deposit.amount;
+    if (deposit.source === "withdraw") balance += deposit.amount;
   }
   return round2(balance);
 }

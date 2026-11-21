@@ -386,7 +386,7 @@ export type BankDeposit = {
   id: string;
   date: string;
   amount: number;
-  source: "cash" | "own" | "other";
+  source: "cash" | "own" | "other" | "withdraw";
   note: string;
   createdAt: string;
 };

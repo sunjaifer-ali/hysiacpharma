@@ -170,7 +170,7 @@ export function balanceSheet(
   adjustments: StockAdjustment[] = [],
   openingDues: OpeningDue[] = [],
   expenses: Expense[] = [],
-  deposits: { date: string; amount: number }[] = [],
+  deposits: { date: string; amount: number; source?: string }[] = [],
   openings: { cash?: number; gst?: number } = {},
 ): BalanceSheet {
   const inventory = stockValue(stockRegister(products, purchases, invoices, creditNotes, asOn, undefined, adjustments));
@@ -195,7 +195,7 @@ export function balanceSheet(
       openSupplier.reduce((s, d) => s + (d.paidAmount || 0), 0),
   );
   const spent = round2(expenses.filter((item) => item.date <= asOn).reduce((sum, item) => sum + item.amount, 0));
-  const added = round2(deposits.filter((item) => item.date <= asOn).reduce((sum, item) => sum + item.amount, 0));
+  const added = round2(deposits.filter((item) => item.date <= asOn && item.source !== "withdraw").reduce((sum, item) => sum + item.amount, 0));
   const cash = round2((openings.cash || 0) + received - paidSuppliers - spent + added);
   const inputGst = round2(
     postedPurchases(purchases)
