@@ -20,6 +20,8 @@ function snapshot(): BooksSnapshot {
     openingDues: s.openingDues,
     expenses: s.expenses,
     deposits: s.deposits,
+    employees: s.employees,
+    salaryPays: s.salaryPays,
     bin: s.bin,
   };
 }
@@ -36,6 +38,8 @@ function entryMark(books: BooksSnapshot): string {
     books.openingDues ?? [],
     books.expenses ?? [],
     books.deposits ?? [],
+    books.employees ?? [],
+    books.salaryPays ?? [],
   ]);
 }
 

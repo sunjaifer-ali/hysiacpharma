@@ -382,6 +382,29 @@ export type Expense = {
   createdAt: string;
 };
 
+export type Employee = {
+  id: string;
+  name: string;
+  designation: string;
+  pan: string;
+  phone: string;
+  monthlySalary: number;
+  joinedOn: string;
+  active: boolean;
+  note: string;
+  createdAt: string;
+};
+
+export type SalaryPay = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  amount: number;
+  mode: PaymentMode;
+  note: string;
+  createdAt: string;
+};
 export type BankDeposit = {
   id: string;
   date: string;

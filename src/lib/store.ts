@@ -18,6 +18,8 @@ import type {
   CreditNoteStatus,
   Expense,
   BankDeposit,
+  Employee,
+  SalaryPay,
   Invoice,
   InvoiceDraft,
   InvoiceLine,
@@ -54,6 +56,8 @@ type BillingState = {
   openingDues: OpeningDue[];
   expenses: Expense[];
   deposits: BankDeposit[];
+  employees: Employee[];
+  salaryPays: SalaryPay[];
   bin: RecycleEntry[];
   updateCompany: (patch: Partial<CompanyProfile>) => void;
   upsertProduct: (product: Product) => void;
@@ -89,6 +93,9 @@ type BillingState = {
   deleteExpense: (id: string) => void;
   saveDeposit: (input: { id?: string; date: string; amount: number; source: BankDeposit["source"]; note: string }) => BankDeposit;
   deleteDeposit: (id: string) => void;
+  saveEmployee: (input: { id?: string; name: string; designation: string; pan: string; phone: string; monthlySalary: number; joinedOn: string; active: boolean; note: string }) => Employee;
+  deleteEmployee: (id: string) => void;
+  recordSalary: (input: { employeeId: string; date: string; amount: number; mode: PaymentMode; note: string }) => SalaryPay;
   updatePayment: (id: string, patch: { date?: string; mode?: PaymentMode; reference?: string; amount?: number }) => void;
   restoreBin: (id: string) => void;
   purgeBin: (id: string) => void;
@@ -108,6 +115,8 @@ type BillingState = {
     openingDues?: OpeningDue[];
     expenses?: Expense[];
     deposits?: BankDeposit[];
+    employees?: Employee[];
+    salaryPays?: SalaryPay[];
     bin?: RecycleEntry[];
   }) => void;
 };
@@ -383,6 +392,8 @@ export function normalizeBooks(data: Persisted): {
   openingDues: OpeningDue[];
   expenses: Expense[];
   deposits: BankDeposit[];
+  employees: Employee[];
+  salaryPays: SalaryPay[];
   bin: RecycleEntry[];
 } {
   const invoices = (data.invoices ?? []).map(normalizeInvoice);
@@ -446,6 +457,8 @@ export function normalizeBooks(data: Persisted): {
     openingDues: Array.isArray(data.openingDues) ? data.openingDues : [],
     expenses: Array.isArray(data.expenses) ? data.expenses : [],
     deposits: Array.isArray(data.deposits) ? data.deposits : [],
+    employees: Array.isArray(data.employees) ? data.employees : [],
+    salaryPays: Array.isArray(data.salaryPays) ? data.salaryPays : [],
     bin: Array.isArray(data.bin) ? data.bin : [],
   };
 }
@@ -506,6 +519,8 @@ export const useBillingStore = create<BillingState>()(
       openingDues: [],
       expenses: [],
       deposits: [],
+      employees: [],
+      salaryPays: [],
       bin: [],
       updateCompany: (patch) => set({ company: normalizeCompany({ ...get().company, ...patch }) }),
       upsertProduct: (product) => {
@@ -1280,6 +1295,57 @@ export const useBillingStore = create<BillingState>()(
           deposits: get().deposits.filter((item) => item.id !== id),
           bin: [binItem({ kind: "deposit", title: entry.note || "Bank deposit", subtitle: entry.date, deposit: entry }), ...get().bin],
         });
+      },
+      saveEmployee: (input) => {
+        const name = input.name.trim();
+        if (!name) throw new Error("Enter the employee name.");
+        const state = get();
+        const existing = input.id ? state.employees.find((item) => item.id === input.id) : undefined;
+        const entry: Employee = {
+          id: existing?.id ?? crypto.randomUUID(),
+          name,
+          designation: input.designation.trim(),
+          pan: input.pan.trim().toUpperCase(),
+          phone: input.phone.trim(),
+          monthlySalary: round2(Math.max(0, input.monthlySalary || 0)),
+          joinedOn: input.joinedOn || todayISO(),
+          active: input.active,
+          note: input.note.trim(),
+          createdAt: existing?.createdAt ?? new Date().toISOString(),
+        };
+        set({ employees: existing ? state.employees.map((item) => (item.id === entry.id ? entry : item)) : [entry, ...state.employees] });
+        return entry;
+      },
+      deleteEmployee: (id) => {
+        set({ employees: get().employees.filter((item) => item.id !== id) });
+      },
+      recordSalary: (input) => {
+        const state = get();
+        const employee = state.employees.find((item) => item.id === input.employeeId);
+        if (!employee) throw new Error("Select an employee.");
+        const amount = round2(Math.max(0, input.amount));
+        if (amount <= 0) throw new Error("Enter the salary amount.");
+        const pay: SalaryPay = {
+          id: crypto.randomUUID(),
+          employeeId: employee.id,
+          employeeName: employee.name,
+          date: input.date || todayISO(),
+          amount,
+          mode: input.mode || "bank",
+          note: input.note.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        const expense: Expense = {
+          id: crypto.randomUUID(),
+          date: pay.date,
+          category: "salary",
+          amount,
+          mode: pay.mode,
+          note: `Salary · ${employee.name}${pay.note ? ` · ${pay.note}` : ""}`,
+          createdAt: pay.createdAt,
+        };
+        set({ salaryPays: [pay, ...state.salaryPays], expenses: [expense, ...state.expenses] });
+        return pay;
       },
       restoreBin: (id) => {
         const state = get();

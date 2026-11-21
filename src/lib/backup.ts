@@ -18,6 +18,8 @@ export type BooksSnapshot = {
   openingDues?: OpeningDue[];
   expenses?: import("./types").Expense[];
   deposits?: import("./types").BankDeposit[];
+  employees?: import("./types").Employee[];
+  salaryPays?: import("./types").SalaryPay[];
   bin?: RecycleEntry[];
 };
 
@@ -83,6 +85,8 @@ export function booksFingerprint(books: BooksSnapshot): string {
       openingDues: books.openingDues ?? [],
       expenses: books.expenses ?? [],
       deposits: books.deposits ?? [],
+      employees: books.employees ?? [],
+      salaryPays: books.salaryPays ?? [],
       bin: books.bin ?? [],
     }),
   );
@@ -108,6 +112,8 @@ export function parseBooksBackup(raw: unknown): BooksSnapshot {
     openingDues: Array.isArray(data.openingDues) ? (data.openingDues as OpeningDue[]) : [],
     expenses: Array.isArray(data.expenses) ? (data.expenses as import("./types").Expense[]) : [],
     deposits: Array.isArray(data.deposits) ? (data.deposits as import("./types").BankDeposit[]) : [],
+    employees: Array.isArray(data.employees) ? (data.employees as import("./types").Employee[]) : [],
+    salaryPays: Array.isArray(data.salaryPays) ? (data.salaryPays as import("./types").SalaryPay[]) : [],
     bin: Array.isArray(data.bin) ? (data.bin as RecycleEntry[]) : [],
   };
 }

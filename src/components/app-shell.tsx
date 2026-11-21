@@ -18,6 +18,7 @@ import {
   UserRoundPlus,
   Users,
   Wallet,
+  IdCard,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
@@ -51,6 +52,7 @@ const NAV = [
   { to: "/reports", label: "Reports", icon: BookOpen, group: "Office" },
   { to: "/accounts", label: "Accounts", icon: Landmark, group: "Office" },
   { to: "/bank", label: "Bank", icon: Banknote, group: "Office" },
+  { to: "/employees", label: "Employees", icon: IdCard, group: "Office" },
   { to: "/settings", label: "Settings", icon: Settings, group: "Office" },
   { to: "/users", label: "Users", icon: UserRoundPlus, group: "Office" },
   { to: "/bin", label: "Recycle bin", icon: ArchiveRestore, group: "Office" },

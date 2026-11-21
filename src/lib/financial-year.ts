@@ -212,6 +212,8 @@ export function freshFinancialYear(books: BooksSnapshot, target: string): BooksS
     openingDues: dues,
     expenses: [],
     deposits: [],
+    employees: books.employees ?? [],
+    salaryPays: [],
     bin: [],
   };
 }

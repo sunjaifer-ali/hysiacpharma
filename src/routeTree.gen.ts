@@ -14,6 +14,7 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as BankRouteImport } from './routes/bank'
 import { Route as BinRouteImport } from './routes/bin'
 import { Route as CreditsRouteImport } from './routes/credits'
+import { Route as EmployeesRouteImport } from './routes/employees'
 import { Route as InvoicesRouteImport } from './routes/invoices'
 import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as LoginRouteImport } from './routes/login'
@@ -77,6 +78,11 @@ const BinRoute = BinRouteImport.update({
 const CreditsRoute = CreditsRouteImport.update({
   id: '/credits',
   path: '/credits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmployeesRoute = EmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InvoicesRoute = InvoicesRouteImport.update({
@@ -281,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/bank': typeof BankRoute
   '/bin': typeof BinRoute
   '/credits': typeof CreditsRouteWithChildren
+  '/employees': typeof EmployeesRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/ledger': typeof LedgerRoute
   '/login': typeof LoginRoute
@@ -326,6 +333,7 @@ export interface FileRoutesByTo {
   '/accounts': typeof AccountsRoute
   '/bank': typeof BankRoute
   '/bin': typeof BinRoute
+  '/employees': typeof EmployeesRoute
   '/ledger': typeof LedgerRoute
   '/login': typeof LoginRoute
   '/parties': typeof PartiesRoute
@@ -368,6 +376,7 @@ export interface FileRoutesById {
   '/bank': typeof BankRoute
   '/bin': typeof BinRoute
   '/credits': typeof CreditsRouteWithChildren
+  '/employees': typeof EmployeesRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/ledger': typeof LedgerRoute
   '/login': typeof LoginRoute
@@ -416,6 +425,7 @@ export interface FileRouteTypes {
     | '/bank'
     | '/bin'
     | '/credits'
+    | '/employees'
     | '/invoices'
     | '/ledger'
     | '/login'
@@ -461,6 +471,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/bank'
     | '/bin'
+    | '/employees'
     | '/ledger'
     | '/login'
     | '/parties'
@@ -502,6 +513,7 @@ export interface FileRouteTypes {
     | '/bank'
     | '/bin'
     | '/credits'
+    | '/employees'
     | '/invoices'
     | '/ledger'
     | '/login'
@@ -549,6 +561,7 @@ export interface RootRouteChildren {
   BankRoute: typeof BankRoute
   BinRoute: typeof BinRoute
   CreditsRoute: typeof CreditsRouteWithChildren
+  EmployeesRoute: typeof EmployeesRoute
   InvoicesRoute: typeof InvoicesRouteWithChildren
   LedgerRoute: typeof LedgerRoute
   LoginRoute: typeof LoginRoute
@@ -599,6 +612,13 @@ declare module '@tanstack/react-router' {
       path: '/credits'
       fullPath: '/credits'
       preLoaderRoute: typeof CreditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/employees': {
+      id: '/employees'
+      path: '/employees'
+      fullPath: '/employees'
+      preLoaderRoute: typeof EmployeesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invoices': {
@@ -1051,6 +1071,7 @@ const rootRouteChildren: RootRouteChildren = {
   BankRoute: BankRoute,
   BinRoute: BinRoute,
   CreditsRoute: CreditsRouteWithChildren,
+  EmployeesRoute: EmployeesRoute,
   InvoicesRoute: InvoicesRouteWithChildren,
   LedgerRoute: LedgerRoute,
   LoginRoute: LoginRoute,
