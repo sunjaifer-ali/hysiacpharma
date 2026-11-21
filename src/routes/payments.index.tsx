@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PeriodFilter, useVoucherPeriod } from "@/components/period-filter";
 import { formatDate, formatINR, todayISO } from "@/lib/format";
 import { invoiceTotals } from "@/lib/gst";
 import { invoiceNetDue } from "@/lib/returns";
@@ -38,6 +39,7 @@ function PaymentsPage() {
   const [date, setDate] = useState(todayISO());
   const [mode, setMode] = useState<PaymentMode>("bank");
   const [reference, setReference] = useState("");
+  const period = useVoucherPeriod();
 
   const openInvoices = useMemo(
     () =>
@@ -198,6 +200,15 @@ function PaymentsPage() {
         </div>
       </div>
 
+      <PeriodFilter
+        from={period.from}
+        to={period.to}
+        preset={period.preset}
+        onFrom={period.setFrom}
+        onTo={period.setTo}
+        onPreset={period.apply}
+      />
+
       <div className="mt-6 overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-border)]">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -213,14 +224,14 @@ function PaymentsPage() {
             </tr>
           </thead>
           <tbody>
-            {payments.length === 0 ? (
+            {payments.filter((p) => period.includes(p.date)).length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
-                  No receipts or payments yet.
+                  No receipts or payments in this period.
                 </td>
               </tr>
             ) : (
-              payments.map((p) => (
+              payments.filter((p) => period.includes(p.date)).map((p) => (
                 <tr key={p.id} className="border-b border-border/70 last:border-0">
                   <td className="px-4 py-3">
                     <Link to="/payments/$id" params={{ id: p.id }} className="font-medium text-primary hover:underline">

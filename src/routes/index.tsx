@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatINR, formatINRCompact, monthKey, monthLabel } from "@/lib/format";
-import { invoiceTotals } from "@/lib/gst";
+import { invoiceTotals, currentMonthRange } from "@/lib/gst";
 import { inferYearId, yearLabel, yearRange } from "@/lib/financial-year";
 import { invoiceNetDue } from "@/lib/returns";
 import { isDesktopApp } from "@/lib/desktop";
@@ -51,6 +51,12 @@ function Home() {
     return d >= start && d <= end;
   });
 
+  const month = currentMonthRange();
+  const monthInvoices = live.filter((i) => i.date >= month.from && i.date <= month.to);
+  const monthNotes = creditNotes.filter((n) => n.status === "issued" && n.date >= month.from && n.date <= month.to);
+  const monthSales =
+    monthInvoices.reduce((s, i) => s + invoiceTotals(i).grand, 0) -
+    monthNotes.reduce((s, n) => s + invoiceTotals(n).grand, 0);
   const sales =
     fyInvoices.reduce((s, i) => s + invoiceTotals(i).grand, 0) -
     fyNotes.reduce((s, n) => s + invoiceTotals(n).grand, 0);
@@ -119,8 +125,9 @@ function Home() {
 
       <LowStockBanner />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi icon={IndianRupee} label="FY sales" value={formatINRCompact(sales)} hint="Invoices net of credit notes" />
+        <Kpi icon={IndianRupee} label="This month sales" value={formatINRCompact(monthSales)} hint="Current calendar month" />
         <Kpi icon={Receipt} label="GST collected" value={formatINRCompact(gst)} hint="CGST + SGST + IGST" />
         <Kpi icon={Wallet} label="Outstanding" value={formatINRCompact(outstanding)} hint="Unpaid + partial" />
         <Kpi

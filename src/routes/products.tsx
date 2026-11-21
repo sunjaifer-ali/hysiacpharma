@@ -26,6 +26,7 @@ function ProductsPage() {
   const adjustments = useBillingStore((s) => s.adjustments);
   const remove = useBillingStore((s) => s.deleteProduct);
   const [q, setQ] = useState("");
+  const [openId, setOpenId] = useState("");
 
   const groups = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -55,9 +56,7 @@ function ProductsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl">Products</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            One medicine can have several lots (batch, MRP, PTS, PTR). Stock is counted per lot.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Tap a product to see lots, batches and prices.</p>
         </div>
         <ProductFormDialog
           trigger={
@@ -90,18 +89,26 @@ function ProductsPage() {
         ) : (
           groups.map((lots) => {
             const head = lots[0]!;
+            const key = head.itemId || head.id;
+            const open = openId === key;
+            const stock = lots.reduce((sum, lot) => sum + stockOf(lot.id), 0);
             return (
-              <article key={head.itemId || head.id} className="overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-border)]">
-                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-3">
+              <article key={key} className="overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-border)]">
+                <button
+                  type="button"
+                  className="flex w-full items-start justify-between gap-2 px-4 py-3 text-left"
+                  onClick={() => setOpenId(open ? "" : key)}
+                >
                   <div>
                     <p className="font-medium">{head.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {head.genericName} · {head.pack} · HSN {head.hsn}
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">{head.pack} · Stock {stock}</p>
                   </div>
-                  <Badge variant="secondary">
-                    {lots.length} lot{lots.length === 1 ? "" : "s"}
-                  </Badge>
+                  <Badge variant="secondary">{open ? "Hide" : "Details"}</Badge>
+                </button>
+                {open ? (
+                  <>
+                <div className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+                  {head.genericName} · HSN {head.hsn}
                 </div>
                 <ul>
                   {lots.map((p) => {
@@ -142,6 +149,8 @@ function ProductsPage() {
                     );
                   })}
                 </ul>
+                  </>
+                ) : null}
               </article>
             );
           })

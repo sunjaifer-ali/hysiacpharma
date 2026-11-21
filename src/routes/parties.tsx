@@ -17,6 +17,7 @@ function PartiesPage() {
   const parties = useBillingStore((s) => s.parties);
   const remove = useBillingStore((s) => s.deleteParty);
   const [q, setQ] = useState("");
+  const [openId, setOpenId] = useState("");
 
   const rows = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -31,9 +32,7 @@ function PartiesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl">Parties</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Stockists bill at PTS. Retailers, hospitals and walk-in bill at PTR.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Tap a name to see GST and other details.</p>
         </div>
         <PartyFormDialog
           trigger={
@@ -51,19 +50,22 @@ function PartiesPage() {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {rows.map((p) => (
+        {rows.map((p) => {
+          const open = openId === p.id;
+          return (
           <div key={p.id} className="rounded-2xl bg-card p-5 shadow-[var(--shadow-border)]">
-            <div className="flex items-start justify-between gap-2">
+            <button type="button" className="flex w-full items-start justify-between gap-2 text-left" onClick={() => setOpenId(open ? "" : p.id)}>
               <div>
                 <p className="font-medium">{p.name}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {p.city}, {stateName(p.stateCode)}
-                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{open ? "Hide details" : "Tap for details"}</p>
               </div>
               <Badge variant={p.kind === "unregistered" ? "outline" : "default"}>
                 {p.kind === "registered" ? "B2B" : p.kind === "composition" ? "Composition" : "B2C"}
               </Badge>
-            </div>
+            </button>
+            {open ? (
+              <>
+            <p className="mt-3 text-xs text-muted-foreground">{p.city}, {stateName(p.stateCode)}</p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               <Badge variant="secondary">
                 {channelLabel(p.channel)} · {priceListLabel(priceListForChannel(p.channel))}
@@ -94,8 +96,11 @@ function PartiesPage() {
                 onConfirm={() => remove(p.id)}
               />
             </div>
+              </>
+            ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
     </AppShell>
   );
