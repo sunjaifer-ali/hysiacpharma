@@ -25,8 +25,8 @@ function PurchaseDetailPage() {
   const recordPurchasePayment = useBillingStore((s) => s.recordPurchasePayment);
   const applyOrderAdvance = useBillingStore((s) => s.applyOrderAdvance);
   const advance = useBillingStore((s) =>
-    s.payments
-      .filter((payment) => payment.kind === "payment" && s.purchaseOrders.some((order) => order.id === payment.voucherId && order.supplierId === purchase?.supplierId))
+    (s.payments ?? [])
+      .filter((payment) => payment.kind === "payment" && (s.purchaseOrders ?? []).some((order) => order.id === payment.voucherId && order.supplierId === purchase?.supplierId))
       .reduce((sum, payment) => sum + payment.amount, 0),
   );
   const [payOpen, setPayOpen] = useState(false);

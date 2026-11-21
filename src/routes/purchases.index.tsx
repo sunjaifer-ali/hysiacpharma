@@ -147,7 +147,13 @@ function PurchasesPage() {
                       <td className="px-4 py-3 text-right tabular-nums">{formatINR(t.taxable)}</td>
                       <td className="px-4 py-3 text-right tabular-nums font-medium">{formatINR(t.grand)}</td>
                       <td className="px-2 py-2">
-                        <DeleteVoucherButton
+                        <div className="flex items-center justify-end gap-1">
+                          {pur.status !== "cancelled" ? (
+                            <Button asChild variant="ghost" size="sm">
+                              <Link to="/purchases/$id/edit" params={{ id: pur.id }}>Edit</Link>
+                            </Button>
+                          ) : null}
+                          <DeleteVoucherButton
                           compact
                           title={`Delete ${pur.number}?`}
                           description="Moves this purchase to the recycle bin. Stock from it is hidden until you restore it."
@@ -156,6 +162,7 @@ function PurchasesPage() {
                             toast.success("Moved to the recycle bin");
                           }}
                         />
+                        </div>
                       </td>
                     </tr>
                   );

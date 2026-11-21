@@ -44,7 +44,7 @@ function EditPurchasePage() {
             : "Posting assigns the next purchase number and writes batch lots onto stock."}
         </p>
       </div>
-      <PurchaseEditor existing={purchase} />
+      <PurchaseEditor key={purchase.id} existing={purchase} />
     </AppShell>
   );
 }

@@ -92,7 +92,31 @@ export function PurchaseEditor({ existing }: { existing?: Purchase }) {
   const [placeOfSupply, setPlaceOfSupply] = useState(existing?.placeOfSupply ?? company.stateCode);
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [roundOff, setRoundOff] = useState(existing?.roundOff ?? 0);
-  const [lines, setLines] = useState<PurchaseLine[]>(existing?.lines?.length ? existing.lines : [emptyLine()]);
+  const [lines, setLines] = useState<PurchaseLine[]>(
+    existing?.lines?.length
+      ? existing.lines.map((line) => ({
+          ...emptyLine(),
+          ...line,
+          id: line.id || crypto.randomUUID(),
+          name: line.name || "",
+          hsn: line.hsn || "",
+          pack: line.pack || "",
+          batch: line.batch || "",
+          expiry: line.expiry || "",
+          mfgDate: line.mfgDate || "",
+          qty: Number(line.qty) || 0,
+          freeQty: Number(line.freeQty) || 0,
+          mrp: Number(line.mrp) || 0,
+          purchaseRate: Number(line.purchaseRate) || 0,
+          discount: Number(line.discount) || 0,
+          gstRate: line.gstRate ?? 12,
+          taxable: Number(line.taxable) || 0,
+          cgst: Number(line.cgst) || 0,
+          sgst: Number(line.sgst) || 0,
+          igst: Number(line.igst) || 0,
+        }))
+      : [emptyLine()],
+  );
 
   const supplier = parties.find((p) => p.id === supplierId);
   const intra = isIntraState(supplier?.stateCode ?? company.stateCode, placeOfSupply);
