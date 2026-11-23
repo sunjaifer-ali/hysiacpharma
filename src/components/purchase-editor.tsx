@@ -556,7 +556,7 @@ export function PurchaseEditor({ existing }: { existing?: Purchase }) {
                   <div className="space-y-1">
                     <Label>GST %</Label>
                     <Select
-                      value={String(line.gstRate)}
+                      value={GST_RATES.includes(line.gstRate) ? String(line.gstRate) : "12"}
                       onValueChange={(v) => patchLine(line.id, { gstRate: Number(v) as GstRate })}
                     >
                       <SelectTrigger>

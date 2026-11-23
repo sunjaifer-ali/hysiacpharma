@@ -73,10 +73,11 @@ function PurchaseDetailPage() {
           </Button>
           {purchase.status === "draft" || purchase.status === "posted" ? (
             <>
-              <Button asChild variant="outline">
-                <Link to="/purchases/$id/edit" params={{ id: purchase.id }}>
-                  {purchase.status === "posted" ? "Edit" : "Edit draft"}
-                </Link>
+              <Button
+                variant="outline"
+                onClick={() => void navigate({ to: "/purchases/$id/edit", params: { id: purchase.id } })}
+              >
+                {purchase.status === "posted" ? "Edit" : "Edit draft"}
               </Button>
               {purchase.status === "draft" ? (
                 <Button
