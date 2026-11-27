@@ -103,7 +103,7 @@ function NavLinks({ onNavigate, role }: { onNavigate?: () => void; role: WebRole
   );
 }
 
-const IDLE_MS = 30 * 60 * 1000;
+const IDLE_MS = 60 * 60 * 1000;
 
 function useIdleSignOut(enabled: boolean) {
   const last = useRef(Date.now());
